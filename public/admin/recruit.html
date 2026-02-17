@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新規募集 - シフト管理システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <span class="header-logo">シフト管理システム - 管理者</span>
+      <div class="header-nav">
+        <span class="header-user" id="userName"></span>
+        <a href="/admin/" class="btn btn-secondary btn-sm">募集一覧</a>
+        <a href="/admin/recruit.html" class="btn btn-secondary btn-sm">新規募集</a>
+        <a href="/admin/staff.html" class="btn btn-secondary btn-sm">スタッフ管理</a>
+        <button type="button" class="btn btn-secondary btn-sm" id="logoutBtn">ログアウト</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <h1 style="margin-bottom: 1.5rem;">新規募集作成</h1>
+
+      <form id="recruitForm" class="card">
+        <div class="form-group">
+          <label for="title">募集タイトル</label>
+          <input type="text" id="title" class="form-control" placeholder="例: 1月第2週シフト募集" required>
+        </div>
+
+        <div class="form-group">
+          <label>対象</label>
+          <select id="targetGroup" class="form-control">
+            <option value="all">全スタッフ</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>募集枠</label>
+          <div id="slotsContainer"></div>
+          <button type="button" class="btn btn-secondary btn-sm" id="addSlotBtn" style="margin-top: 0.5rem;">枠を追加</button>
+        </div>
+
+        <button type="submit" class="btn btn-primary">募集を開始</button>
+      </form>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="recruit.js"></script>
+</body>
+</html>

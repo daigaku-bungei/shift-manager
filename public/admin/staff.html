@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スタッフ管理 - シフト管理システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <span class="header-logo">シフト管理システム - 管理者</span>
+      <div class="header-nav">
+        <span class="header-user" id="userName"></span>
+        <a href="/admin/" class="btn btn-secondary btn-sm">募集一覧</a>
+        <a href="/admin/recruit.html" class="btn btn-secondary btn-sm">新規募集</a>
+        <a href="/admin/staff.html" class="btn btn-secondary btn-sm">スタッフ管理</a>
+        <button type="button" class="btn btn-secondary btn-sm" id="logoutBtn">ログアウト</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <h1 style="margin-bottom: 1.5rem;">スタッフ管理</h1>
+
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <h3 style="margin-bottom: 1rem;">スタッフ追加</h3>
+        <form id="staffForm" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.75rem; align-items: end;">
+          <div class="form-group">
+            <label for="staffId">ID</label>
+            <input type="text" id="staffId" class="form-control" placeholder="staff1" required>
+          </div>
+          <div class="form-group">
+            <label for="staffName">名前</label>
+            <input type="text" id="staffName" class="form-control" placeholder="山田太郎" required>
+          </div>
+          <div class="form-group">
+            <label for="staffPassword">パスワード</label>
+            <input type="password" id="staffPassword" class="form-control" placeholder="パスワード" required>
+          </div>
+          <div class="form-group">
+            <label for="staffGroup">グループ（任意）</label>
+            <input type="text" id="staffGroup" class="form-control" placeholder="例: キッチン">
+          </div>
+          <button type="submit" class="btn btn-primary">追加</button>
+        </form>
+      </div>
+
+      <h3 style="margin-bottom: 1rem;">登録スタッフ一覧</h3>
+      <div id="staffList"></div>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="staff.js"></script>
+</body>
+</html>

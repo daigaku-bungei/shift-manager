@@ -1,0 +1,18 @@
+{
+  "name": "shift-manager",
+  "version": "2.0.0",
+  "description": "リクエスト回答型シフト管理システム",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "keywords": ["shift", "schedule", "management"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "uuid": "^9.0.0"
+  }
+}

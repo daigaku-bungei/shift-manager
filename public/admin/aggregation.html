@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>回答集約 - シフト管理システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <span class="header-logo">シフト管理システム - 管理者</span>
+      <div class="header-nav">
+        <span class="header-user" id="userName"></span>
+        <a href="/admin/" class="btn btn-secondary btn-sm">募集一覧</a>
+        <a href="/admin/recruit.html" class="btn btn-secondary btn-sm">新規募集</a>
+        <a href="/admin/staff.html" class="btn btn-secondary btn-sm">スタッフ管理</a>
+        <button type="button" class="btn btn-secondary btn-sm" id="logoutBtn">ログアウト</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <a href="/admin/" style="display: inline-block; margin-bottom: 1rem; color: var(--text-secondary);">← 募集一覧に戻る</a>
+      <h1 id="recruitmentTitle" style="margin-bottom: 1.5rem;"></h1>
+
+      <div id="aggregationContainer"></div>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="aggregation.js"></script>
+</body>
+</html>

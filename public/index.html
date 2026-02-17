@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフト管理システム - ログイン</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <h1 class="login-title">シフト管理システム</h1>
+      <p style="text-align: center; color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+        リクエスト回答型シフト集約システム
+      </p>
+
+      <div class="login-role-toggle">
+        <button type="button" class="btn active" data-role="admin">管理者</button>
+        <button type="button" class="btn" data-role="staff">スタッフ</button>
+      </div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="userId">ユーザーID</label>
+          <input type="text" id="userId" class="form-control" placeholder="IDを入力" required>
+        </div>
+        <div class="form-group">
+          <label for="password">パスワード</label>
+          <input type="password" id="password" class="form-control" placeholder="パスワードを入力" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">ログイン</button>
+      </form>
+
+      <p style="margin-top: 1.5rem; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+        初期管理者: admin / admin123<br>
+        サンプルスタッフ: staff1 または staff2 / staff123
+      </p>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

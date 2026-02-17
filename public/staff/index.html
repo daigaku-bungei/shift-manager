@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スタッフ - シフト管理システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <span class="header-logo">シフト管理システム - スタッフ</span>
+      <div class="header-nav">
+        <span class="header-user" id="userName"></span>
+        <button type="button" class="btn btn-secondary btn-sm" id="logoutBtn">ログアウト</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <h1 style="margin-bottom: 1.5rem;">回答する募集</h1>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+        あなた宛の募集一覧です。各募集の日程に対して「○・△・×」で可否を入力してください。<br>
+        あなたの回答は他のスタッフには見えません。
+      </p>
+
+      <div id="recruitmentList"></div>
+    </main>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="staff.js"></script>
+</body>
+</html>
