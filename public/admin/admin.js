@@ -155,30 +155,29 @@ async function loadShifts() {
             }
 
             return `
-                <div class="card" style="border-left: 4px solid var(--accent-primary);">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                        <div>
-                            <h2 style="margin-bottom: 8px; font-size: 20px; font-weight: 800;">${shift.title}</h2>
-                            ${deadlineHtml}
-                            ${shift.description ? `<p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 14px;">📝 ${shift.description}</p>` : ''}
-                            <div style="color: var(--text-secondary); font-size: 14px;">
-                                ${shift.dates ? shift.dates.map(d => `<p style="margin-bottom: 4px;">📅 ${formatDate(d.date)} ${d.startTime} - ${d.endTime}</p>`).join('') : `<p>📅 ${shift.date}</p>`}
-                            </div>
-                            <p style="color: var(--text-secondary); font-size: 14px; margin-top: 8px;">
-                                必要スキル: <span class="skill-badge skill-lv${shift.required_skill_level || 1}">Lv ${shift.required_skill_level || 1}</span>
-                            </p>
+                <div class="card" style="border-left: 4px solid var(--accent-primary); padding: 15px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+                        <h2 style="font-size: 16px; font-weight: 800; margin: 0;">${shift.title} <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 10px;">必要Lv: <span class="skill-badge skill-lv${shift.required_skill_level || 1}">Lv ${shift.required_skill_level || 1}</span></span></h2>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            ${deadlineHtml.replace('margin-bottom: 12px;', 'margin-bottom: 0;')}
+                            <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteShift('${shift.id}')">削除</button>
                         </div>
-                        <button class="btn btn-danger" style="padding: 8px 16px; font-size: 13px;" onclick="deleteShift('${shift.id}')">削除</button>
                     </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                        <div style="color: var(--text-secondary);">
+                            ${shift.dates ? shift.dates.map(d => `<span style="margin-right: 15px;">📅 ${formatDate(d.date)} ${d.startTime} - ${d.endTime}</span>`).join('') : `<span>📅 ${shift.date}</span>`}
+                        </div>
+                    </div>
+                    ${shift.description ? `<p style="color: var(--text-secondary); margin-top: 8px; font-size: 12px;">📝 ${shift.description}</p>` : ''}
 
                     ${assignedMember ? `
-                        <div style="padding: 15px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 15px;">
-                            <strong>割当済:</strong> ${assignedMember.name} 
+                        <div style="padding: 10px; background: var(--bg-tertiary); border-radius: 6px; margin-top: 10px; display: inline-block;">
+                            <strong style="font-size: 12px;">割当済:</strong> <span style="font-size: 14px;">${assignedMember.name}</span> 
                             <span class="skill-badge skill-lv${assignedMember.skill_level}">Lv ${assignedMember.skill_level}</span>
                         </div>
                     ` : `
-                        <div style="padding: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 8px; margin-bottom: 15px;">
-                            <strong style="color: var(--warning);">未割当</strong>
+                        <div style="padding: 10px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 6px; margin-top: 10px; display: inline-block;">
+                            <strong style="color: var(--warning); font-size: 12px;">未割当</strong>
                         </div>
                     `}
 
@@ -242,6 +241,45 @@ async function assignShift(shiftId, userId) {
     }
 }
 
+// 魔法の自動生成（一括シフト作成）
+async function runAutoAssign() {
+    if (!confirm('未割当のシフトすべてに対して、希望・相性・実績を元に自動でシフトを組みますか？\n（既に割当済のシフトは変更されません）')) return;
+
+    try {
+        const btn = document.querySelector('button[onclick="runAutoAssign()"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '生成中...';
+        }
+
+        const response = await fetch('/api/shifts/auto-assign-all', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.count > 0) {
+                showAlert(`${result.count}件のシフトを自動で割り当てました！`, 'success');
+            } else {
+                showAlert('該当する候補者が見つからなかったため、割り当てられませんでした（または未割当のシフトがありません）', 'warning');
+            }
+            loadShifts();
+            loadDashboard();
+        } else {
+            showAlert('自動シフト生成に失敗しました', 'error');
+        }
+
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '✨ 全体自動シフト生成';
+        }
+    } catch (error) {
+        console.error('自動生成エラー:', error);
+        showAlert('通信エラーが発生しました', 'error');
+    }
+}
+
 // メンバー一覧読み込み
 async function loadMembers() {
     try {
@@ -255,21 +293,60 @@ async function loadMembers() {
             return;
         }
 
+        // ▼ ▼ ▼ ペアリング用のセレクトボックス更新 ▼ ▼ ▼
+        const rule1 = document.getElementById('rule-member1');
+        const rule2 = document.getElementById('rule-member2');
+        const options = members.filter(m => m.role !== 'admin').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+        if (rule1) rule1.innerHTML = '<option value="">選択してください</option>' + options;
+        if (rule2) rule2.innerHTML = '<option value="">選択してください</option>' + options;
+        loadPairings();
+        // ▲ ▲ ▲ 
+
         tbody.innerHTML = members.map(member => `
             <tr>
                 <td>${member.name}</td>
-                <td>${member.id}</td>
-                <td><span class="skill-badge skill-lv3">${member.group || '未設定'}</span></td>
-                <td style="color: var(--text-secondary);">-</td>
+                <td style="color: var(--text-secondary); font-size: 14px;">${member.id}</td>
                 <td>
-                    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; margin-right: 5px;" onclick="openEditMemberModal('${member.id}')">編集</button>
-                    ${member.role !== 'admin' ? `<button class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="deleteMember('${member.id}')">削除</button>` : ''}
+                    <select class="form-control" style="width: auto; display: inline-block; padding: 4px 8px; font-size: 13px;" onchange="updateMemberSkill('${member.id}', this.value)">
+                        <option value="1" ${member.skill_level == 1 ? 'selected' : ''}>Lv1 (初心者)</option>
+                        <option value="2" ${member.skill_level == 2 ? 'selected' : ''}>Lv2</option>
+                        <option value="3" ${member.skill_level == 3 ? 'selected' : ''}>Lv3 (標準)</option>
+                        <option value="4" ${member.skill_level == 4 ? 'selected' : ''}>Lv4</option>
+                        <option value="5" ${member.skill_level == 5 ? 'selected' : ''}>Lv5 (上級者)</option>
+                    </select>
+                </td>
+                <td style="color: var(--text-secondary); font-size: 14px;">${member.group || '-'}</td>
+                <td>
+                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; margin-right: 5px;" onclick="openEditMemberModal('${member.id}')">編集</button>
+                    ${member.role !== 'admin' ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteMember('${member.id}')">削除</button>` : ''}
                 </td>
             </tr>
         `).join('');
     } catch (error) {
         console.error('メンバーの読み込みに失敗:', error);
         showAlert('メンバーの読み込みに失敗しました', 'error');
+    }
+}
+
+// メンバースキル更新
+async function updateMemberSkill(memberId, newLevel) {
+    try {
+        const response = await fetch(`/api/members/${memberId}/skill`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ skill_level: parseInt(newLevel) })
+        });
+
+        if (response.ok) {
+            showAlert('スキルレベルを更新しました', 'success');
+        } else {
+            showAlert('スキルレベルの更新に失敗しました', 'error');
+            loadMembers(); // Revert UI
+        }
+    } catch (error) {
+        showAlert('通信エラーが発生しました', 'error');
+        loadMembers(); // Revert UI
     }
 }
 
@@ -288,6 +365,88 @@ async function deleteMember(memberId) {
     } catch (error) {
         console.error('メンバー削除エラー:', error);
         showAlert('通信エラーが発生しました', 'error');
+    }
+}
+
+// ==========================================
+// 相性（ペアリング）ルール管理
+// ==========================================
+let pairings = [];
+
+async function loadPairings() {
+    try {
+        const res = await fetch('/api/pairings', { credentials: 'include' });
+        pairings = await res.json();
+
+        const list = document.getElementById('rules-list');
+        if (!list) return;
+
+        if (pairings.length === 0) {
+            list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">設定されたルールはありません</p>';
+            return;
+        }
+
+        list.innerHTML = pairings.map(p => {
+            const m1 = members.find(m => m.id === p.member1_id)?.name || '不明';
+            const m2 = members.find(m => m.id === p.member2_id)?.name || '不明';
+            const text = p.type === 'pair' ? '同じシフトにする（ペア）' : '別のシフトにする';
+            const color = p.type === 'pair' ? 'var(--success)' : 'var(--danger)';
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary);">
+                    <div>
+                        <strong style="font-size: 14px;">${m1}</strong> <span style="font-size: 13px;">と</span> <strong style="font-size: 14px;">${m2}</strong> <span style="font-size: 13px;">を</span> <strong style="color: ${color}; font-size: 14px;">${text}</strong>
+                    </div>
+                    <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" onclick="deletePairRule('${p.id}')">削除</button>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('ルールの読み込み失敗:', e);
+    }
+}
+
+async function addPairRule() {
+    const m1 = document.getElementById('rule-member1').value;
+    const m2 = document.getElementById('rule-member2').value;
+    const type = document.getElementById('rule-type').value;
+
+    if (!m1 || !m2) {
+        showAlert('2人のメンバーを選択してください', 'error');
+        return;
+    }
+    if (m1 === m2) {
+        showAlert('同じメンバー同士は設定できません', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/pairings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ member1_id: m1, member2_id: m2, type })
+        });
+        if (res.ok) {
+            showAlert('ルールを追加しました', 'success');
+            loadPairings();
+        } else {
+            showAlert('追加に失敗しました', 'error');
+        }
+    } catch (e) {
+        showAlert('通信エラー', 'error');
+    }
+}
+
+async function deletePairRule(id) {
+    if (!confirm('このルールを削除しますか？')) return;
+    try {
+        const res = await fetch(`/api/pairings/${id}`, { method: 'DELETE', credentials: 'include' });
+        if (res.ok) {
+            showAlert('ルールを削除しました', 'success');
+            loadPairings();
+        }
+    } catch (e) {
+        showAlert('削除エラー', 'error');
     }
 }
 
@@ -390,47 +549,70 @@ async function loadResponses() {
                 </div>`;
             }
 
-            // 日別の回答をまとめるHTMLを作る
-            let dailyHtml = '';
+            // 日付列の抽出
+            let dateCols = [];
             if (shift.dates && shift.dates.length > 0) {
-                shift.dates.forEach(dateInfo => {
-                    const dateStr = formatDate(dateInfo.date);
-
-                    // この日の「行ける」「条件付き」「むり」の人を分ける箱
-                    const available = [];
-                    const partial = [];
-                    const unavailable = [];
-
-                    shiftResponses.forEach(r => {
-                        if (!r.dailyResponses) return; // 古いデータはスキップ
-                        const dayResp = r.dailyResponses.find(dr => dr.date === dateInfo.date);
-                        if (dayResp) {
-                            if (dayResp.status === 'available') available.push(r.userName);
-                            if (dayResp.status === 'partial') partial.push(`${r.userName} (${dayResp.startTime}〜${dayResp.endTime})`);
-                            if (dayResp.status === 'unavailable') unavailable.push(r.userName);
-                        }
-                    });
-
-                    dailyHtml += `
-                        <div style="margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
-                            <h4 style="margin-bottom: 10px; background: var(--bg-tertiary); padding: 5px; border-radius: 4px;">📅 ${dateStr}</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                                <div style="color: var(--success); font-size: 13px; background: rgba(16, 185, 129, 0.05); padding: 8px; border-radius: 4px;"><strong>◯ 行ける:</strong><br>${available.join('<br>') || 'なし'}</div>
-                                <div style="color: var(--warning); font-size: 13px; background: rgba(245, 158, 11, 0.05); padding: 8px; border-radius: 4px;"><strong>△ 条件付き:</strong><br>${partial.join('<br>') || 'なし'}</div>
-                                <div style="color: var(--danger); font-size: 13px; background: rgba(239, 68, 68, 0.05); padding: 8px; border-radius: 4px;"><strong>✕ むり:</strong><br>${unavailable.join('<br>') || 'なし'}</div>
-                            </div>
-                        </div>
-                    `;
-                });
+                dateCols = shift.dates.map(d => d.date);
+            } else {
+                dateCols = [shift.date];
             }
 
+            // スタッフ一覧を取得（回答マトリックスの行になる）
+            const staffMembers = members.filter(m => m.role === 'staff');
+
+            let matrixHtml = `
+            <div style="overflow-x: auto; margin-top: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; white-space: nowrap;">
+                    <thead>
+                        <tr style="background: var(--bg-tertiary); border-bottom: 2px solid var(--border-color);">
+                            <th style="padding: 10px; border-right: 1px solid var(--border-color); text-align: left; position: sticky; left: 0; background: var(--bg-tertiary); z-index: 2;">スタッフ</th>
+                            ${dateCols.map(d => `<th style="padding: 10px; border-right: 1px solid var(--border-color); min-width: 60px;">${formatDate(d)}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            staffMembers.forEach(member => {
+                const userResponse = shiftResponses.find(r => r.userId === member.id || r.user_id === member.id);
+
+                matrixHtml += `<tr style="border-bottom: 1px solid var(--border-color);">`;
+                matrixHtml += `<td style="padding: 10px; border-right: 1px solid var(--border-color); text-align: left; font-weight: bold; position: sticky; left: 0; background: var(--bg-secondary); z-index: 1;">${member.name}</td>`;
+
+                dateCols.forEach(date => {
+                    let cellContent = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>'; // 未回答
+                    let bgColor = '';
+                    if (userResponse && userResponse.dailyResponses) {
+                        const dayResp = userResponse.dailyResponses.find(dr => dr.date === date);
+                        if (dayResp) {
+                            if (dayResp.status === 'available') {
+                                cellContent = '◎';
+                                bgColor = 'background: rgba(16, 185, 129, 0.1); color: var(--success); font-weight: bold; font-size: 16px;';
+                            } else if (dayResp.status === 'partial') {
+                                cellContent = `<div style="line-height: 1.2;">△<br><span style="font-size: 10px;">${dayResp.startTime}-${dayResp.endTime}</span></div>`;
+                                bgColor = 'background: rgba(245, 158, 11, 0.1); color: var(--warning); font-weight: bold;';
+                            } else if (dayResp.status === 'unavailable') {
+                                cellContent = '✕';
+                                bgColor = 'background: rgba(239, 68, 68, 0.1); color: var(--danger); font-weight: bold; font-size: 14px;';
+                            }
+                        }
+                    }
+                    matrixHtml += `<td style="padding: 10px; border-right: 1px solid var(--border-color); ${bgColor}">${cellContent}</td>`;
+                });
+                matrixHtml += `</tr>`;
+            });
+
+            matrixHtml += `
+                    </tbody>
+                </table>
+            </div>`;
+
             return `
-                <div class="card">
-                    <h2 style="margin-bottom: 8px;">${shift.title}</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">総回答数: ${shiftResponses.length}件</p>
-                    <div>
-                        ${dailyHtml}
+                <div class="card" style="padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; font-size: 18px; font-weight: bold;">${shift.title}</h2>
+                        <span style="font-size: 13px; color: var(--text-secondary); font-weight: bold; background: var(--bg-tertiary); padding: 4px 10px; border-radius: 20px;">回答率: ${shiftResponses.length}/${staffMembers.length}</span>
                     </div>
+                    ${matrixHtml}
                 </div>
             `;
         }).join('');

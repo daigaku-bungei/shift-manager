@@ -374,9 +374,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(15, 23, 42, 0.4);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 2000;
             align-items: center;
             justify-content: center;
@@ -758,7 +758,13 @@
         <section id="shifts-section" class="section">
             <div class="section-header">
                 <h1 class="section-title">シフト管理</h1>
-                <button class="btn btn-primary" onclick="openCreateShiftModal()">+ 新規シフト作成</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="openCreateShiftModal()" style="font-weight: bold;">+
+                        新規作成</button>
+                    <button class="btn btn-success" onclick="runAutoAssign()"
+                        style="font-weight: bold; background: linear-gradient(135deg, #10b981, #059669); border: none;">✨
+                        全体自動シフト生成</button>
+                </div>
             </div>
 
             <div id="shifts-list"></div>
@@ -783,6 +789,26 @@
                     </thead>
                     <tbody id="members-tbody"></tbody>
                 </table>
+            </div>
+
+            <div class="card" style="margin-top: 30px;">
+                <h2 style="margin-bottom: 15px; font-size: 20px;">🤖 自動シフト作成ルール（相性設定）</h2>
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                    スタッフ同士の相性（同じ日にシフトを入れる、あるいは別々にする）を設定できます。<br>
+                    このルールは「自動生成」ボタンを押した際に反映されます。
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <select id="rule-member1" class="form-control" style="width: 200px;"></select>
+                    <span style="font-weight: bold;">と</span>
+                    <select id="rule-member2" class="form-control" style="width: 200px;"></select>
+                    <span style="font-weight: bold;">を</span>
+                    <select id="rule-type" class="form-control" style="width: auto;">
+                        <option value="pair">同じシフトにする（ペア）</option>
+                        <option value="anti_pair">別のシフトにする</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="addPairRule()">ルール追加</button>
+                </div>
+                <div id="rules-list" style="display: grid; gap: 10px;"></div>
             </div>
         </section>
 

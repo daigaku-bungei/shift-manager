@@ -408,53 +408,59 @@
             border-color: transparent;
         }
 
-        /* 一体型ボタン */
+        /* セパレート型のモダンな回答ボタン */
         .availability-buttons {
             display: flex;
             width: 100%;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            overflow: hidden;
-            background: rgba(241, 245, 249, 0.8);
+            gap: 10px;
+            /* ボタン同士に隙間をあける */
         }
 
         .avail-btn {
             flex: 1;
-            padding: 10px 0;
-            border: none;
-            border-right: 1px solid var(--border-color);
-            background: transparent;
-            font-size: 13px;
-            font-weight: 700;
+            padding: 12px 0;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            /* 少し丸みを帯びた形状 */
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            font-weight: 800;
             color: var(--text-secondary);
             cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .avail-btn:last-child {
-            border-right: none;
+            transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            /* 軽い影をつける */
         }
 
         .avail-btn:hover:not(.selected-circle):not(.selected-triangle):not(.selected-cross) {
-            background: rgba(255, 255, 255, 0.5);
+            background: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
         }
 
         .avail-btn.selected-circle {
             background: #d1fae5;
             color: #059669;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-color: #059669;
+            /* 強調する枠線 */
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+            transform: translateY(-2px) scale(1.02);
         }
 
         .avail-btn.selected-triangle {
             background: #fef3c7;
             color: #d97706;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-color: #d97706;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
+            transform: translateY(-2px) scale(1.02);
         }
 
         .avail-btn.selected-cross {
             background: #fee2e2;
             color: #dc2626;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+            transform: translateY(-2px) scale(1.02);
         }
 
         textarea {
@@ -509,7 +515,10 @@
     <header class="header">
         <div class="logo">Urban Shift Studio</div>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="user-badge" id="user-name-badge">ゲスト</div>
+            <div class="user-badge" id="user-name-badge"
+                onclick="document.querySelector('[data-section=\\\'mypage\\\']').click()"
+                style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.7"
+                onmouseout="this.style.opacity=1">ゲスト</div>
             <button onclick="logout()"
                 style="padding: 6px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; color: var(--text-secondary); transition: 0.2s;"
                 onmouseover="this.style.background='#e2e8f0'"
@@ -540,8 +549,45 @@
         </section>
 
         <section id="my-shifts-section" class="section">
-            <h2 style="margin-bottom: 15px;">📅 あなたの確定シフト</h2>
-            <div id="my-shifts-list"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; font-size: 20px;">📅 マイカレンダー</h2>
+                <button class="btn btn-primary"
+                    style="padding: 8px 12px; font-size: 13px; width: auto; font-weight: bold; border-radius: 8px;"
+                    onclick="openScheduleModal()">+ 予定を追加</button>
+            </div>
+
+            <div class="card" style="padding: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <button onclick="prevMyMonth()"
+                        style="background: none; border: none; font-size: 18px; color: var(--accent-primary); cursor: pointer; font-weight: bold;">◀</button>
+                    <div id="my-calendar-month-year"
+                        style="font-size: 18px; font-weight: 800; color: var(--text-primary);">2023年 10月</div>
+                    <button onclick="nextMyMonth()"
+                        style="background: none; border: none; font-size: 18px; color: var(--accent-primary); cursor: pointer; font-weight: bold;">▶</button>
+                </div>
+
+                <div
+                    style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-bottom: 10px;">
+                    <div style="font-size: 12px; font-weight: bold; color: var(--danger);">日</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">月</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">火</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">水</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">木</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">金</div>
+                    <div style="font-size: 12px; font-weight: bold; color: var(--accent-primary);">土</div>
+                </div>
+
+                <div id="my-calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+                </div>
+            </div>
+
+            <!-- 選んだ日の詳細を表示する領域 -->
+            <div id="my-day-details"
+                style="display: none; padding: 15px; background: rgba(2, 132, 199, 0.05); border: 1px solid var(--accent-glow); border-radius: 12px; margin-bottom: 20px;">
+                <h4 id="my-day-details-title"
+                    style="margin-bottom: 10px; font-size: 15px; color: var(--accent-primary);"></h4>
+                <div id="my-day-details-content"></div>
+            </div>
         </section>
         <section id="mypage-section" class="section">
             <h2 style="margin-bottom: 20px; color: var(--text-primary);">👤 マイページ</h2>
@@ -588,6 +634,33 @@
             <button class="btn btn-primary" onclick="submitShiftData()" style="margin-top: 20px;">
                 この内容で提出する 🚀
             </button>
+        </div>
+    </div>
+
+    <!-- 個人の予定追加モーダル -->
+    <div id="schedule-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 18px;">📝 プライベートな予定を追加</h3>
+                <button onclick="closeScheduleModal()"
+                    style="background:none; border:none; font-size: 24px; color: #999;">&times;</button>
+            </div>
+
+            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;">
+                この予定は店長や他のスタッフには見えません。<br>自分だけの備忘録として使えます。</p>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: bold;">日付</label>
+                <input type="date" id="schedule-date" class="time-input" style="width: 100%; border-radius: 8px;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: bold;">予定の内容</label>
+                <input type="text" id="schedule-title" class="time-input" style="width: 100%; border-radius: 8px;"
+                    placeholder="例：大学の授業、飲み会...">
+            </div>
+
+            <button class="btn btn-primary" onclick="savePersonalSchedule()">保存する ✨</button>
         </div>
     </div>
 

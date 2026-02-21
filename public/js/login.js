@@ -21,6 +21,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const userIdInput = document.getElementById('userId');
     const userIdGroup = document.getElementById('userId-group');
 
+    // ▼ パスワード表示切替
+    const togglePassword = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('password');
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            // アイコンの切り替え（任意）
+            togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+    }
+
     // ▼ タブ切り替え
     if (tabLogin && tabRegister) {
         tabLogin.addEventListener('click', () => {

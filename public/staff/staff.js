@@ -18,7 +18,7 @@ async function loadMyInfo() {
         const res = await fetch('/api/me', { credentials: 'include' });
         if (!res.ok) throw new Error('未ログイン');
         currentUser = await res.json();
-        
+
         // ヘッダーに名前を表示
         document.getElementById('user-name-badge').textContent = currentUser.name + ' さん';
 
@@ -46,7 +46,7 @@ function setupNavigation() {
             item.classList.add('active');
             const targetId = item.getAttribute('data-section') + '-section';
             document.getElementById(targetId).classList.add('active');
-            
+
             // 画面を切り替えるついでに最新データを読み込む
             loadAllData();
         });
@@ -56,18 +56,27 @@ function setupNavigation() {
 // ==========================================
 // 2. データの読み込み ＆ 画面の描画
 // ==========================================
+let mySchedules = [];
+
 async function loadAllData() {
     try {
-        const [shiftsRes, responsesRes] = await Promise.all([
+        const [shiftsRes, responsesRes, schedulesRes] = await Promise.all([
             fetch('/api/shifts', { credentials: 'include' }),
-            fetch('/api/responses', { credentials: 'include' })
+            fetch('/api/responses', { credentials: 'include' }),
+            fetch('/api/me/schedules', { credentials: 'include' })
         ]);
         allShifts = await shiftsRes.json();
         allResponses = await responsesRes.json();
 
+        if (schedulesRes.ok) {
+            mySchedules = await schedulesRes.json();
+        } else {
+            mySchedules = [];
+        }
+
         renderDashboard();
         renderAvailableShifts();
-        renderMyShifts();
+        renderMyCalendar();
     } catch (error) {
         console.error('データの読み込み失敗:', error);
     }
@@ -76,16 +85,16 @@ async function loadAllData() {
 // ▼ 締め切りまでの残り時間を計算する便利ツール
 function getDeadlineInfo(deadlineStr) {
     if (!deadlineStr) return { text: '期限なし', isUrgent: false, isExpired: false };
-    
+
     const now = new Date();
     const deadline = new Date(deadlineStr);
     const diffMs = deadline - now;
-    
+
     if (diffMs < 0) return { text: '回答受付終了', isUrgent: false, isExpired: true };
-    
+
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-    
+
     if (diffDays > 0) return { text: `残り ${diffDays}日`, isUrgent: false, isExpired: false };
     if (diffHours > 0) return { text: `残り ${diffHours}時間`, isUrgent: true, isExpired: false };
     return { text: `まもなく終了！`, isUrgent: true, isExpired: false };
@@ -95,12 +104,12 @@ function getDeadlineInfo(deadlineStr) {
 function renderDashboard() {
     if (!currentUser) return;
     const myRespondedShiftIds = allResponses.filter(r => r.userId === currentUser.id).map(r => r.shiftId);
-    
-    const pendingShifts = allShifts.filter(s => 
-        !myRespondedShiftIds.includes(s.id) && 
+
+    const pendingShifts = allShifts.filter(s =>
+        !myRespondedShiftIds.includes(s.id) &&
         (!s.deadline || new Date(s.deadline) > new Date())
     );
-    
+
     document.getElementById('stat-pending').textContent = pendingShifts.length;
     document.getElementById('stat-confirmed').textContent = myRespondedShiftIds.length;
 
@@ -116,8 +125,8 @@ function renderDashboard() {
 function renderAvailableShifts() {
     if (!currentUser) return;
     const myRespondedShiftIds = allResponses.filter(r => r.userId === currentUser.id).map(r => r.shiftId);
-    const availableShifts = allShifts.filter(s => 
-        !myRespondedShiftIds.includes(s.id) && 
+    const availableShifts = allShifts.filter(s =>
+        !myRespondedShiftIds.includes(s.id) &&
         (!s.deadline || new Date(s.deadline) > new Date())
     );
 
@@ -134,13 +143,13 @@ function createShiftCardsHTML(shiftsArray) {
     return shiftsArray.map(shift => {
         const deadlineInfo = getDeadlineInfo(shift.deadline);
         const badgeClass = deadlineInfo.isUrgent ? 'deadline-badge urgent' : 'deadline-badge';
-        
+
         return `
         <div class="card shift-card">
             <h3 class="shift-title">${shift.title || '名称未設定'}</h3>
             <div class="shift-meta">
                 <span>📝 ${shift.description || '詳細なし'}</span>
-                ${shift.deadline ? `<span class="${badgeClass}">⏰ 期限: ${new Date(shift.deadline).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'numeric', minute:'numeric'})} (${deadlineInfo.text})</span>` : ''}
+                ${shift.deadline ? `<span class="${badgeClass}">⏰ 期限: ${new Date(shift.deadline).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} (${deadlineInfo.text})</span>` : ''}
             </div>
             <button class="btn btn-primary" onclick="openSubmissionModal('${shift.id}')">
                 回答を入力する 🚀
@@ -158,15 +167,15 @@ function openSubmissionModal(shiftId) {
     if (!currentSubmittingShift) return;
 
     document.getElementById('modal-shift-title').textContent = currentSubmittingShift.title;
-    document.getElementById('submission-comment').value = ''; 
-    
+    document.getElementById('submission-comment').value = '';
+
     const container = document.getElementById('submission-days-container');
     container.innerHTML = '';
 
     if (currentSubmittingShift.dates && currentSubmittingShift.dates.length > 0) {
         currentSubmittingShift.dates.forEach((dateInfo, index) => {
             const dateStr = new Date(dateInfo.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
-            
+
             const dayRow = document.createElement('div');
             dayRow.className = 'submission-row';
             dayRow.innerHTML = `
@@ -202,7 +211,7 @@ function closeSubmissionModal() {
 function selectAvail(index, type) {
     const btnGroup = document.getElementById(`btn-group-${index}`);
     const timeInputs = document.getElementById(`time-inputs-${index}`);
-    
+
     btnGroup.querySelectorAll('.avail-btn').forEach(btn => {
         btn.classList.remove('selected-circle', 'selected-triangle', 'selected-cross');
     });
@@ -228,8 +237,8 @@ async function submitShiftData() {
     const dailyResponses = [];
     currentSubmittingShift.dates.forEach((dateInfo, index) => {
         const btnGroup = document.getElementById(`btn-group-${index}`);
-        
-        let status = 'unavailable'; 
+
+        let status = 'unavailable';
         if (btnGroup.querySelector('.selected-circle')) status = 'available';
         if (btnGroup.querySelector('.selected-triangle')) status = 'partial';
 
@@ -266,7 +275,7 @@ async function submitShiftData() {
         if (res.ok) {
             alert('🎉 シフトの提出が完了しました！');
             closeSubmissionModal();
-            loadAllData(); 
+            loadAllData();
         } else {
             alert('提出に失敗しました...');
         }
@@ -276,35 +285,186 @@ async function submitShiftData() {
 }
 
 // ==========================================
-// 5. 確定シフトの表示
+// 5. カレンダー＆確定シフトの表示
 // ==========================================
-function renderMyShifts() {
-    if (!currentUser) return;
-    const list = document.getElementById('my-shifts-list');
-    const myResponses = allResponses.filter(r => r.userId === currentUser.id);
+let currentMyDate = new Date();
+let selectedMyDateStr = null;
 
-    if (myResponses.length === 0) {
-        list.innerHTML = '<div class="empty-state">提出済みのシフトはありません</div>';
-        return;
+function renderMyCalendar() {
+    if (!currentUser) return;
+
+    const year = currentMyDate.getFullYear();
+    const month = currentMyDate.getMonth();
+
+    document.getElementById('my-calendar-month-year').textContent = `${year}年 ${month + 1}月`;
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPadding = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+
+    const container = document.getElementById('my-calendar-days');
+    let html = '';
+
+    for (let i = 0; i < startPadding; i++) {
+        html += `<div style="padding: 10px; background: rgba(0,0,0,0.02); border-radius: 8px;"></div>`;
     }
 
-    let html = '';
-    myResponses.forEach(resp => {
-        const shift = allShifts.find(s => s.id === resp.shiftId);
-        if (shift) {
-            html += `
-            <div class="card" style="border-left: 4px solid var(--success);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin-bottom: 5px; font-size: 16px;">✅ ${shift.title}</h3>
-                    <span style="background: rgba(16, 185, 129, 0.1); color: var(--success); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">提出済み</span>
-                </div>
-                ${resp.comment ? `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">💬 ${resp.comment}</p>` : ''}
-            </div>
-            `;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(year, month, d);
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dStr = String(dateObj.getDate()).padStart(2, '0');
+        const currentDateStr = `${y}-${m}-${dStr}`;
+
+        let shiftHtml = '';
+
+        // 当該スタッフが割り当てられているシフト
+        allShifts.forEach(shift => {
+            if (shift.assigned_user_id === currentUser.id) {
+                const shiftDates = shift.dates ? shift.dates.map(x => x.date) : [shift.date];
+                if (shiftDates.includes(currentDateStr)) {
+                    shiftHtml += `<div style="width: 6px; height: 6px; background: var(--accent-primary); border-radius: 50%; margin: 2px auto;"></div>`;
+                }
+            }
+        });
+
+        // 個人のプライベート予定
+        const daySchedules = mySchedules.filter(s => s.date === currentDateStr);
+        if (daySchedules.length > 0) {
+            shiftHtml += `<div style="width: 6px; height: 6px; background: var(--warning); border-radius: 50%; margin: 2px auto;"></div>`;
         }
-    });
-    list.innerHTML = html;
+
+        const isSelected = selectedMyDateStr === currentDateStr;
+        const bg = isSelected ? 'background: rgba(2, 132, 199, 0.1); border: 2px solid var(--accent-primary);' : 'background: var(--bg-secondary); border: 2px solid transparent;';
+
+        html += `
+            <div style="padding: 10px 0; border-radius: 8px; cursor: pointer; ${bg} transition: 0.2s;" onclick="showMyDayDetails('${currentDateStr}')">
+                <div style="font-weight: bold; ${dateObj.getDay() === 0 ? 'color:var(--danger);' : dateObj.getDay() === 6 ? 'color:var(--accent-primary);' : ''}">${d}</div>
+                <div style="height: 12px; display: flex; justify-content: center; gap: 2px; margin-top: 4px;">
+                    ${shiftHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    if (selectedMyDateStr) {
+        showMyDayDetails(selectedMyDateStr);
+    }
 }
+
+function prevMyMonth() {
+    currentMyDate.setMonth(currentMyDate.getMonth() - 1);
+    renderMyCalendar();
+}
+
+function nextMyMonth() {
+    currentMyDate.setMonth(currentMyDate.getMonth() + 1);
+    renderMyCalendar();
+}
+
+function showMyDayDetails(dateStr) {
+    selectedMyDateStr = dateStr;
+    renderMyCalendar(); // update selection highlight
+
+    const detailsDiv = document.getElementById('my-day-details');
+    const title = document.getElementById('my-day-details-title');
+    const content = document.getElementById('my-day-details-content');
+
+    detailsDiv.style.display = 'block';
+
+    const [y, m, d] = dateStr.split('-');
+    title.textContent = `${y}年 ${parseInt(m)}月 ${parseInt(d)}日の予定`;
+
+    let html = '';
+
+    // 確定シフト
+    const dayShifts = allShifts.filter(shift => shift.assigned_user_id === currentUser.id && (shift.dates ? shift.dates.some(x => x.date === dateStr) : shift.date === dateStr));
+
+    dayShifts.forEach(shift => {
+        let timeStr = '時間未定';
+        if (shift.dates) {
+            const dateInfo = shift.dates.find(x => x.date === dateStr);
+            if (dateInfo) timeStr = `${dateInfo.startTime} 〜 ${dateInfo.endTime}`;
+        }
+        html += `
+            <div style="background: rgba(255, 255, 255, 0.8); border-left: 4px solid var(--accent-primary); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 12px; color: var(--accent-primary); font-weight: bold; margin-bottom: 4px;">🏢 確定シフト</div>
+                <div style="font-weight: bold; margin-bottom: 4px; font-size: 16px;">${shift.title}</div>
+                <div style="font-size: 13px; color: var(--text-secondary);">⏰ ${timeStr}</div>
+                ${shift.description ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">📝 ${shift.description}</div>` : ''}
+            </div>
+        `;
+    });
+
+    // 個人の予定
+    const daySchedules = mySchedules.filter(s => s.date === dateStr);
+    daySchedules.forEach(schedule => {
+        html += `
+            <div style="background: rgba(255, 255, 255, 0.8); border-left: 4px solid var(--warning); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-size: 12px; color: var(--warning); font-weight: bold; margin-bottom: 4px;">👤 プライベート設定予定</div>
+                    <div style="font-weight: bold; font-size: 15px;">${schedule.title}</div>
+                </div>
+                <button onclick="deletePersonalSchedule('${schedule.id}')" style="background:none; border:none; color: var(--danger); cursor: pointer; padding: 4px 8px; font-size: 16px;">🗑️</button>
+            </div>
+        `;
+    });
+
+    if (dayShifts.length === 0 && daySchedules.length === 0) {
+        html = '<div style="color: var(--text-secondary); font-size: 13px; text-align: center; padding: 20px;">予定はありません</div>';
+    }
+
+    content.innerHTML = html;
+}
+
+function openScheduleModal() {
+    document.getElementById('schedule-date').value = selectedMyDateStr || '';
+    document.getElementById('schedule-title').value = '';
+    document.getElementById('schedule-modal').classList.add('active');
+}
+
+function closeScheduleModal() {
+    document.getElementById('schedule-modal').classList.remove('active');
+}
+
+async function savePersonalSchedule() {
+    const date = document.getElementById('schedule-date').value;
+    const title = document.getElementById('schedule-title').value;
+    if (!date || !title) return alert('全ての項目を入力してください');
+
+    try {
+        const res = await fetch('/api/me/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ date, title })
+        });
+        if (res.ok) {
+            closeScheduleModal();
+            loadAllData(); // Reload schedules
+        } else {
+            alert('保存に失敗しました');
+        }
+    } catch (e) {
+        alert('通信エラーが発生しました');
+    }
+}
+
+async function deletePersonalSchedule(id) {
+    if (!confirm('予定を削除しますか？')) return;
+    try {
+        const res = await fetch(`/api/me/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
+        if (res.ok) {
+            loadAllData();
+        }
+    } catch (e) {
+        alert('通信エラーが発生しました');
+    }
+}
+
 // ==========================================
 // 6. ログアウト ＆ モーダル外側クリックで閉じる機能
 // ==========================================
@@ -321,9 +481,13 @@ async function logout() {
 
 // ▼ モーダルの外側（暗い部分）をクリックしたら閉じる魔法
 window.addEventListener('click', (e) => {
-    const modal = document.getElementById('submission-modal');
-    // クリックした要素（e.target）が、モーダルの背景（modal自身）だった場合のみ閉じる
-    if (e.target === modal) {
+    const submissionModal = document.getElementById('submission-modal');
+    if (e.target === submissionModal) {
         closeSubmissionModal();
+    }
+
+    const scheduleModal = document.getElementById('schedule-modal');
+    if (e.target === scheduleModal) {
+        closeScheduleModal();
     }
 });
