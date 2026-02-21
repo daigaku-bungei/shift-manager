@@ -13,35 +13,55 @@
         }
 
         :root {
-            --bg-dark: #e2e8f0;
-            --bg-secondary: #ffffff;
-            --bg-tertiary: #f1f5f9;
+            /* 🌃 Urbanテーマのカラーパレット */
+            --bg-base: #f8fafc;
+            /* ベースの背景色（少し冷たいグレー） */
+            --bg-glass: rgba(255, 255, 255, 0.8);
+            /* すりガラスの背景色 */
+            --border-glass: rgba(255, 255, 255, 0.5);
+            /* ガラスの境界線 */
+
             --accent-primary: #0284c7;
-            --accent-secondary: #38bdf8;
-            --text-primary: #334155;
+            /* メインの青 */
+            --accent-glow: rgba(2, 132, 199, 0.5);
+            /* ネオンのような光彩 */
+
+            --text-primary: #1e293b;
+            /* 深い青グレーの文字色 */
             --text-secondary: #64748b;
-            --border-color: #cbd5e1;
+            /* セカンダリーテキスト */
+
+            --border-color: #e2e8f0;
+            /* 通常の境界線 */
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+
+            /* 旧配色のためのフォールバック（削除せずに再定義） */
+            --bg-dark: #f1f5f9;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f8fafc;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-            background: var(--bg-dark);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            /* 都会の空をイメージした微細なグラデーション背景 */
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             color: var(--text-primary);
             line-height: 1.6;
             font-size: 16px;
+            min-height: 100vh;
         }
 
         .header {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glass);
             padding: 0 30px;
             position: sticky;
             top: 0;
             z-index: 100;
-            backdrop-filter: blur(10px);
         }
 
         .header-container {
@@ -55,8 +75,9 @@
 
         .logo {
             font-size: 26px;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -174,18 +195,20 @@
         }
 
         .card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            transition: all 0.3s;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background: var(--bg-glass);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            transition: transform 0.3s, box-shadow 0.3s;
         }
 
         .card:hover {
-            border-color: var(--accent-primary);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
         }
 
         .stats-grid {
@@ -196,13 +219,20 @@
         }
 
         .stat-card {
-            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
             padding: 30px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
         }
 
         .stat-card::before {
@@ -212,13 +242,13 @@
             left: 0;
             width: 100%;
             height: 4px;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
         }
 
         .stat-number {
             font-size: 48px;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            font-weight: 900;
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -245,9 +275,9 @@
         .form-control {
             width: 100%;
             padding: 14px 16px;
-            background: var(--bg-tertiary);
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
             color: var(--text-primary);
             font-size: 16px;
             transition: all 0.3s;
@@ -256,7 +286,7 @@
         .form-control:focus {
             outline: none;
             border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+            box-shadow: 0 0 0 3px var(--accent-glow);
             background: #ffffff;
         }
 
@@ -344,27 +374,44 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            background: rgba(15, 23, 42, 0.4);
             backdrop-filter: blur(5px);
-        }
-
-        .modal.active {
-            display: flex;
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 2000;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
 
+        .modal.active {
+            display: flex;
+        }
+
         .modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
             max-width: 800px;
             width: 100%;
             max-height: 90vh;
+            border-radius: 20px;
+            padding: 30px;
             overflow-y: auto;
+            animation: popIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.92);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .modal-header {
@@ -394,11 +441,14 @@
 
         /* カレンダースタイル */
         .calendar-container {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 16px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
         }
 
         .calendar-header {
@@ -450,13 +500,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--bg-secondary);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s;
             font-weight: 600;
             position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
         }
 
         .calendar-day:hover {

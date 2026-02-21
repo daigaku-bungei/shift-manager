@@ -66,59 +66,22 @@ async function loadUserInfo() {
 }
 
 // ダッシュボード読み込み
-// シフト一覧読み込み（新・期限対応版！）
-async function loadShifts() {
+async function loadDashboard() {
     try {
-        const response = await fetch('/api/shifts', { credentials: 'include' });
-        shifts = await response.json();
+        const shiftsRes = await fetch('/api/shifts', { credentials: 'include' });
+        shifts = await shiftsRes.json();
 
-        const container = document.getElementById('shifts-list');
+        const membersRes = await fetch('/api/members', { credentials: 'include' });
+        members = await membersRes.json();
 
-        if (shifts.length === 0) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><h2>シフトがまだありません</h2><p>新規シフトを作成してください</p></div>';
-            return;
-        }
+        const responsesRes = await fetch('/api/responses', { credentials: 'include' });
+        responses = await responsesRes.json();
 
-        container.innerHTML = shifts.map(shift => {
-            const assignedMember = members.find(m => m.id === shift.assigned_user_id);
-
-            // 🌟 追加：提出期限のラベルをカッコよく表示！
-            let deadlineHtml = '';
-            if (shift.deadline) {
-                const dt = new Date(shift.deadline);
-                const isExpired = dt < new Date();
-                deadlineHtml = `<div style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; ${isExpired ? 'background: #fee2e2; color: #ef4444;' : 'background: #fffbeb; color: #d97706; border: 1px solid #fcd34d;'}">⏰ 提出期限: ${dt.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} ${isExpired ? '(終了)' : ''}</div>`;
-            }
-
-            return `
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                        <div>
-                            <h2 style="margin-bottom: 8px;">${shift.title}</h2>
-                            ${deadlineHtml} ${shift.description ? `<p style="color: var(--text-secondary); margin-bottom: 10px;">${shift.description}</p>` : ''}
-                            <div style="color: var(--text-secondary); font-size: 14px;">
-                                ${shift.dates ? shift.dates.map(d => `<p>📅 ${formatDate(d.date)} ${d.startTime} - ${d.endTime}</p>`).join('') : `<p>📅 ${shift.date}</p>`}
-                            </div>
-                        </div>
-                        <button class="btn btn-danger" onclick="deleteShift('${shift.id}')">削除</button>
-                    </div>
-
-                    ${assignedMember ? `
-                        <div style="padding: 15px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 15px;">
-                            <strong>割当済:</strong> ${assignedMember.name} 
-                            <span class="skill-badge skill-lv${assignedMember.skill_level}">Lv ${assignedMember.skill_level}</span>
-                        </div>
-                    ` : `
-                        <div style="padding: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 8px; margin-bottom: 15px;">
-                            <strong style="color: var(--warning);">未割当</strong>
-                        </div>
-                    `}
-                </div>
-            `;
-        }).join('');
+        updateStats();
+        displayRecentShifts();
     } catch (error) {
-        console.error('シフトの読み込みに失敗:', error);
-        showAlert('シフトの読み込みに失敗しました', 'error');
+        console.error('ダッシュボードの読み込みに失敗:', error);
+        showAlert('データの読み込みに失敗しました', 'error');
     }
 }
 
@@ -157,7 +120,7 @@ function displayRecentShifts() {
     `).join('');
 }
 
-// シフト一覧読み込み（高機能版を復元！）
+// シフト一覧読み込み
 async function loadShifts() {
     try {
         const response = await fetch('/api/shifts', { credentials: 'include' });
@@ -172,23 +135,40 @@ async function loadShifts() {
 
         container.innerHTML = shifts.map(shift => {
             const assignedMember = members.find(m => m.id === shift.assigned_user_id);
-            const shiftResponses = responses.filter(r => r.shift_id === shift.id);
-            const availableCount = shiftResponses.filter(r => r.response === 'available').length;
+            const shiftResponses = responses.filter(r => r.shift_id === shift.id || r.shiftId === shift.id);
+            // new response logic
+            let availableCount = 0;
+            shiftResponses.forEach(r => {
+                if (r.dailyResponses && r.dailyResponses.length > 0) {
+                    r.dailyResponses.forEach(dr => {
+                        if (dr.status === 'available' || dr.status === 'partial') availableCount++;
+                    })
+                }
+            });
+
+            // 🌟 提出期限のラベルを追加
+            let deadlineHtml = '';
+            if (shift.deadline) {
+                const dt = new Date(shift.deadline);
+                const isExpired = dt < new Date();
+                deadlineHtml = `<div style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; ${isExpired ? 'background: #fee2e2; color: #ef4444;' : 'background: #fffbeb; color: #d97706; border: 1px solid #fcd34d;'}">⏰ 提出期限: ${dt.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} ${isExpired ? '(終了)' : ''}</div>`;
+            }
 
             return `
-                <div class="card">
+                <div class="card" style="border-left: 4px solid var(--accent-primary);">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
                         <div>
-                            <h2 style="margin-bottom: 8px;">${shift.title}</h2>
-                            ${shift.description ? `<p style="color: var(--text-secondary); margin-bottom: 10px;">${shift.description}</p>` : ''}
+                            <h2 style="margin-bottom: 8px; font-size: 20px; font-weight: 800;">${shift.title}</h2>
+                            ${deadlineHtml}
+                            ${shift.description ? `<p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 14px;">📝 ${shift.description}</p>` : ''}
                             <div style="color: var(--text-secondary); font-size: 14px;">
-                                ${shift.dates ? shift.dates.map(d => `<p>📅 ${formatDate(d.date)} ${d.startTime} - ${d.endTime}</p>`).join('') : `<p>📅 ${shift.date}</p>`}
+                                ${shift.dates ? shift.dates.map(d => `<p style="margin-bottom: 4px;">📅 ${formatDate(d.date)} ${d.startTime} - ${d.endTime}</p>`).join('') : `<p>📅 ${shift.date}</p>`}
                             </div>
-                            <p style="color: var(--text-secondary); font-size: 14px; margin-top: 5px;">
+                            <p style="color: var(--text-secondary); font-size: 14px; margin-top: 8px;">
                                 必要スキル: <span class="skill-badge skill-lv${shift.required_skill_level || 1}">Lv ${shift.required_skill_level || 1}</span>
                             </p>
                         </div>
-                        <button class="btn btn-danger" onclick="deleteShift('${shift.id}')">削除</button>
+                        <button class="btn btn-danger" style="padding: 8px 16px; font-size: 13px;" onclick="deleteShift('${shift.id}')">削除</button>
                     </div>
 
                     ${assignedMember ? `
@@ -202,25 +182,25 @@ async function loadShifts() {
                         </div>
                     `}
 
-                    ${!assignedMember && availableCount > 0 ? `
+                    ${!assignedMember && shiftResponses.length > 0 ? `
                         <div style="margin-top: 15px;">
-                            <strong style="margin-bottom: 10px; display: block;">「行ける」と回答したメンバー (${availableCount}名)</strong>
-                            ${shiftResponses.filter(r => r.response === 'available').map(r => {
-                const member = members.find(m => m.id === r.user_id);
+                            <strong style="margin-bottom: 10px; display: block; color: var(--text-secondary); font-size: 14px;">回答したメンバー (${shiftResponses.length}件)</strong>
+                            ${shiftResponses.map(r => {
+                const member = members.find(m => m.id === r.userId || m.id === r.user_id);
                 if (!member) return '';
 
                 const reqSkill = shift.required_skill_level || 1;
                 const canAssign = member.skill_level >= reqSkill;
 
                 return `
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color);">
                                         <div>
-                                            ${member.name} 
-                                            <span class="skill-badge skill-lv${member.skill_level}">Lv ${member.skill_level}</span>
-                                            ${!canAssign ? '<span class="badge badge-danger" style="margin-left: 10px;">スキル不足</span>' : ''}
+                                            <span style="font-weight: bold; margin-right: 10px;">${member.name}</span> 
+                                            <span class="skill-badge skill-lv${member.skill_level || 1}">Lv ${member.skill_level || 1}</span>
+                                            ${!canAssign ? '<span style="color: var(--danger); font-size: 12px; font-weight: bold; margin-left: 10px; padding: 2px 6px; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">スキル不足</span>' : ''}
                                         </div>
                                         ${canAssign ? `
-                                            <button class="btn btn-success" style="padding: 6px 12px; font-size: 13px;" onclick="assignShift('${shift.id}', '${member.id}')">
+                                            <button class="btn btn-success" style="padding: 6px 16px; font-size: 13px; font-weight: bold; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);" onclick="assignShift('${shift.id}', '${member.id}')">
                                                 割り当て
                                             </button>
                                         ` : ''}
@@ -772,10 +752,11 @@ window.addEventListener('click', (e) => {
         }
     }
 });
+
 // ========== シフト一括作成機能 ==========
 async function createComplexShift() {
     const title = document.getElementById('shift-title').value.trim();
-    const description = document.getElementById('shift-description').value.trim();
+    const description = document.getElementById('shift-description').trim();
     const responseType = document.getElementById('response-type') ? document.getElementById('response-type').value : 'slot';
     const slotInterval = document.getElementById('slot-interval') ? document.getElementById('slot-interval').value : '30';
 
@@ -814,19 +795,33 @@ async function createComplexShift() {
         });
 
         if (response.ok) {
-            showAlert('シフトを作成して公開しました！', 'success');
+            showAlert('シフトを作成しました！', 'success');
             closeCreateShiftModal();
             // 🌟 4. 次開いた時のために期限の入力欄を空に戻しておく
             if (document.getElementById('shift-deadline')) document.getElementById('shift-deadline').value = '';
-            loadShifts();
             loadDashboard();
+            loadShifts();
         } else {
-            showAlert('シフトの作成に失敗しました', 'error');
+            const error = await response.json();
+            showAlert(error.error || 'シフト作成に失敗しました', 'error');
         }
     } catch (error) {
         console.error('シフト作成エラー:', error);
-        showAlert('通信エラーが発生しました', 'error');
+        showAlert('シフト作成に失敗しました', 'error');
     }
+}
+
+// 期限をワンタッチでセットする関数
+function setQuickDeadline(daysToAdd) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() + daysToAdd);
+    dt.setHours(23, 59, 0, 0); // その日の23:59にする
+
+    // input[type="datetime-local"] 用のフォーマット (YYYY-MM-DDThh:mm)
+    const tzOffset = dt.getTimezoneOffset() * 60000; // local time adjustment
+    const localISOTime = (new Date(dt - tzOffset)).toISOString().slice(0, 16);
+
+    document.getElementById('shift-deadline').value = localISOTime;
 }
 
 // シフト削除
