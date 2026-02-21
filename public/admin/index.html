@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,18 +12,18 @@
             box-sizing: border-box;
         }
 
-       :root {
-            --bg-dark: #e2e8f0;      
-            --bg-secondary: #ffffff; 
-            --bg-tertiary: #f1f5f9;  
-            --accent-primary: #0284c7;   
-            --accent-secondary: #38bdf8; 
-            --text-primary: #334155;   
-            --text-secondary: #64748b; 
-            --border-color: #cbd5e1; 
-            --success: #10b981; 
-            --warning: #f59e0b; 
-            --danger: #ef4444;  
+        :root {
+            --bg-dark: #e2e8f0;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --accent-primary: #0284c7;
+            --accent-secondary: #38bdf8;
+            --text-primary: #334155;
+            --text-secondary: #64748b;
+            --border-color: #cbd5e1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
         }
 
         body {
@@ -179,7 +180,7 @@
             padding: 25px;
             margin-bottom: 20px;
             transition: all 0.3s;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
         .card:hover {
@@ -305,11 +306,36 @@
             font-size: 12px;
             font-weight: 600;
         }
-        .skill-lv1 { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #3b82f6; }
-        .skill-lv2 { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
-        .skill-lv3 { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
-        .skill-lv4 { background: rgba(249, 115, 22, 0.2); color: #f97316; border: 1px solid #f97316; }
-        .skill-lv5 { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+
+        .skill-lv1 {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+        }
+
+        .skill-lv2 {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+
+        .skill-lv3 {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid #f59e0b;
+        }
+
+        .skill-lv4 {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+            border: 1px solid #f97316;
+        }
+
+        .skill-lv5 {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
 
         .modal {
             display: none;
@@ -443,7 +469,7 @@
             opacity: 0.4;
         }
 
-       /* 今日の日付（塗りつぶさず、青い枠線と文字で強調！） */
+        /* 今日の日付（塗りつぶさず、青い枠線と文字で強調！） */
         .calendar-day.today {
             background: var(--bg-secondary);
             color: var(--accent-primary);
@@ -464,6 +490,7 @@
             background: var(--accent-primary);
             color: white;
         }
+
         .calendar-day.has-time {
             box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
         }
@@ -477,18 +504,20 @@
             color: var(--success);
         }
 
-    /* 選択された日付の詳細設定（ノイズ排除のクリーン版！） */
+        /* 選択された日付の詳細設定（ノイズ排除のクリーン版！） */
         .selected-dates-container {
             margin-top: 10px;
             max-height: 300px;
             overflow-y: auto;
-            padding-right: 10px; /* スクロールバーが被らないように */
+            padding-right: 10px;
+            /* スクロールバーが被らないように */
         }
 
         /* スクロールバー自体も細く綺麗にする魔法 */
         .selected-dates-container::-webkit-scrollbar {
             width: 6px;
         }
+
         .selected-dates-container::-webkit-scrollbar-thumb {
             background-color: #cbd5e1;
             border-radius: 10px;
@@ -497,7 +526,8 @@
         .selected-date-item {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
-            border-left: 4px solid var(--accent-primary); /* 左側にシュッとした青い線 */
+            border-left: 4px solid var(--accent-primary);
+            /* 左側にシュッとした青い線 */
             padding: 12px 16px;
             border-radius: 8px;
             margin-bottom: 8px;
@@ -505,7 +535,8 @@
             align-items: center;
             justify-content: space-between;
             gap: 15px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.02); /* ほんのり影をつける */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            /* ほんのり影をつける */
         }
 
         .selected-date-header {
@@ -533,7 +564,7 @@
             background: var(--bg-tertiary);
             border: 1px solid transparent;
         }
-        
+
         .time-inputs .form-control:focus {
             background: #ffffff;
             border-color: var(--accent-primary);
@@ -590,8 +621,34 @@
             padding: 40px 20px;
             color: var(--text-secondary);
         }
+
+        @media (max-width: 768px) {
+            .header-container {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 0;
+                gap: 10px;
+            }
+
+            .nav-menu {
+                overflow-x: auto;
+                width: 100%;
+                justify-content: flex-start;
+                padding-bottom: 5px;
+            }
+
+            .user-info {
+                margin-left: auto;
+            }
+
+            .btn-logout {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+        }
     </style>
 </head>
+
 <body>
     <header class="header">
         <div class="header-container">
@@ -604,7 +661,9 @@
                 <a class="nav-link" data-section="analytics">分析</a>
             </nav>
             <div class="user-info">
-                <a href="/mypage.html" id="admin-name" style="color: var(--accent-primary); text-decoration: none; font-weight: bold; cursor: pointer; transition: opacity 0.3s; padding: 5px 10px; border-radius: 6px; background: rgba(2, 132, 199, 0.05);" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">
+                <a href="/mypage.html" id="admin-name"
+                    style="color: var(--accent-primary); text-decoration: none; font-weight: bold; cursor: pointer; transition: opacity 0.3s; padding: 5px 10px; border-radius: 6px; background: rgba(2, 132, 199, 0.05);"
+                    onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">
                     管理者
                 </a>
                 <button class="btn-logout" onclick="logout()">ログアウト</button>
@@ -694,7 +753,7 @@
         </section>
     </div>
 
- <div id="create-shift-modal" class="modal">
+    <div id="create-shift-modal" class="modal">
         <div class="modal-content" style="max-width: 1000px; width: 95%;">
             <div class="modal-header">
                 <h2 class="modal-title">📅 新規シフト作成</h2>
@@ -702,7 +761,7 @@
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 380px; gap: 40px; align-items: start;">
-                
+
                 <div>
                     <div class="form-group" style="margin-bottom: 20px;">
                         <label class="form-label">業務名・イベント名 <span style="color: var(--danger);">*</span></label>
@@ -711,7 +770,8 @@
 
                     <div class="form-group" style="margin-bottom: 25px;">
                         <label class="form-label">説明・備考</label>
-                        <textarea id="shift-description" class="form-control" rows="3" placeholder="業務内容、持ち物、集合場所など"></textarea>
+                        <textarea id="shift-description" class="form-control" rows="3"
+                            placeholder="業務内容、持ち物、集合場所など"></textarea>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 20px;">
@@ -720,7 +780,8 @@
                             <option value="timerange">A: 時間範囲指定型（フリー入力）</option>
                             <option value="slot">B: コマ割り（スロット）選択型</option>
                         </select>
-                        <p style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;" id="response-type-hint">
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;"
+                            id="response-type-hint">
                             ユーザーが「10:00〜15:00」のように自由に時間を入力する形式
                         </p>
                     </div>
@@ -737,18 +798,24 @@
 
                     <div id="selected-dates-section" style="display: none; margin-bottom: 25px;">
                         <div class="calendar-container" style="margin-bottom: 0; background: var(--bg-secondary);">
-                            <h3 style="margin-bottom: 12px; color: var(--accent-primary); font-size: 16px;">⏳ 選択された日付の時間設定</h3>
-                            
+                            <h3 style="margin-bottom: 12px; color: var(--accent-primary); font-size: 16px;">⏳
+                                選択された日付の時間設定</h3>
+
                             <div style="padding-bottom: 15px; margin-bottom: 15px; border-bottom: 1px dashed #cbd5e1;">
-                                <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: var(--text-secondary);">一括変更（ドラッグした日付に反映）</div>
+                                <div
+                                    style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: var(--text-secondary);">
+                                    一括変更（ドラッグした日付に反映）</div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <input type="time" id="bulk-start-time" class="form-control" style="padding: 8px; font-size: 14px;" value="09:00" onchange="applyBulkTime()">
+                                    <input type="time" id="bulk-start-time" class="form-control"
+                                        style="padding: 8px; font-size: 14px;" value="09:00" onchange="applyBulkTime()">
                                     <span style="color: var(--text-secondary); font-weight: bold;">〜</span>
-                                    <input type="time" id="bulk-end-time" class="form-control" style="padding: 8px; font-size: 14px;" value="18:00" onchange="applyBulkTime()">
+                                    <input type="time" id="bulk-end-time" class="form-control"
+                                        style="padding: 8px; font-size: 14px;" value="18:00" onchange="applyBulkTime()">
                                 </div>
                             </div>
 
-                            <div class="selected-dates-container" id="selected-dates-list" style="margin-top: 0; max-height: 200px;"></div>
+                            <div class="selected-dates-container" id="selected-dates-list"
+                                style="margin-top: 0; max-height: 200px;"></div>
                         </div>
                     </div>
                 </div>
@@ -774,34 +841,50 @@
                         <div id="calendar-days" class="calendar-grid" style="margin-top: 8px;"></div>
                     </div>
 
-                    <div class="form-group" style="padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">
-                        <label class="form-label" style="color: #d97706; margin-bottom: 12px;">提出期限（締め切り） ⏰ <span style="color: var(--danger);">*</span></label>
-                        
+                    <div class="form-group"
+                        style="padding: 15px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">
+                        <label class="form-label" style="color: #d97706; margin-bottom: 12px;">提出期限（締め切り） ⏰ <span
+                                style="color: var(--danger);">*</span></label>
+
                         <div style="display: flex; gap: 6px; margin-bottom: 12px;">
-                            <button type="button" onclick="setQuickDeadline(0)" style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">本日中</button>
-                            <button type="button" onclick="setQuickDeadline(1)" style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">明日中</button>
-                            <button type="button" onclick="setQuickDeadline(3)" style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">3日後</button>
-                            <button type="button" onclick="setQuickDeadline(7)" style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='white'">1週間後</button>
+                            <button type="button" onclick="setQuickDeadline(0)"
+                                style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;"
+                                onmouseover="this.style.background='#fef3c7'"
+                                onmouseout="this.style.background='white'">本日中</button>
+                            <button type="button" onclick="setQuickDeadline(1)"
+                                style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;"
+                                onmouseover="this.style.background='#fef3c7'"
+                                onmouseout="this.style.background='white'">明日中</button>
+                            <button type="button" onclick="setQuickDeadline(3)"
+                                style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;"
+                                onmouseover="this.style.background='#fef3c7'"
+                                onmouseout="this.style.background='white'">3日後</button>
+                            <button type="button" onclick="setQuickDeadline(7)"
+                                style="flex: 1; padding: 6px 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; color: #d97706; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s;"
+                                onmouseover="this.style.background='#fef3c7'"
+                                onmouseout="this.style.background='white'">1週間後</button>
                         </div>
 
-                        <input type="datetime-local" id="shift-deadline" class="form-control" style="border-color: #fcd34d; background: white;">
+                        <input type="datetime-local" id="shift-deadline" class="form-control"
+                            style="border-color: #fcd34d; background: white;">
                     </div>
                 </div>
 
             </div>
-            <button class="btn btn-primary" style="width: 100%; margin-top: 30px; padding: 16px; font-size: 16px;" onclick="createComplexShift()">
+            <button class="btn btn-primary" style="width: 100%; margin-top: 30px; padding: 16px; font-size: 16px;"
+                onclick="createComplexShift()">
                 シフトを作成して公開
             </button>
         </div>
     </div>
 
-  <div id="add-member-modal" class="modal">
+    <div id="add-member-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">🔍 ID検索でスタッフを追加</h2>
                 <button class="modal-close" onclick="closeAddMemberModal()">&times;</button>
             </div>
-            
+
             <div style="margin-bottom: 20px;">
                 <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 10px;">
                     スタッフから伝えられた「@から始まるID」を入力してください。
@@ -812,10 +895,12 @@
                 </div>
             </div>
 
-            <div id="search-result-area" style="display: none; padding: 20px; background: var(--bg-tertiary); border-radius: 12px; text-align: center; border: 1px solid var(--border-color);">
+            <div id="search-result-area"
+                style="display: none; padding: 20px; background: var(--bg-tertiary); border-radius: 12px; text-align: center; border: 1px solid var(--border-color);">
                 <div style="font-size: 40px; margin-bottom: 10px;">👤</div>
                 <h3 id="search-result-name" style="margin-bottom: 5px;">名前</h3>
-                <p id="search-result-id" style="color: var(--accent-primary); font-weight: bold; margin-bottom: 15px;">@id</p>
+                <p id="search-result-id" style="color: var(--accent-primary); font-weight: bold; margin-bottom: 15px;">
+                    @id</p>
                 <button class="btn btn-primary" style="width: 100%;" onclick="approveStaff()">この人をスタッフに追加する</button>
             </div>
         </div>
@@ -835,11 +920,13 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">グループ・役職</label>
-                    <input type="text" class="form-control" id="edit-member-group" name="group" placeholder="例: ホール、キッチン等">
+                    <input type="text" class="form-control" id="edit-member-group" name="group"
+                        placeholder="例: ホール、キッチン等">
                 </div>
                 <div class="form-group">
                     <label class="form-label">新しいパスワード</label>
-                    <input type="password" class="form-control" id="edit-member-password" name="password" minlength="6" placeholder="変更しない場合は空欄">
+                    <input type="password" class="form-control" id="edit-member-password" name="password" minlength="6"
+                        placeholder="変更しない場合は空欄">
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">更新する</button>
             </form>
@@ -848,4 +935,5 @@
 
     <script src="/admin/admin.js"></script>
 </body>
+
 </html>

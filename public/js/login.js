@@ -18,21 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const nameGroup = document.getElementById('name-group');
     const userNameInput = document.getElementById('userName');
     const submitBtn = document.getElementById('submit-btn');
-    const autoGenBtn = document.getElementById('auto-gen-btn'); // 🌟
-    const userIdInput = document.getElementById('userId');      // 🌟
-
-    // ▼ ⚡️ 自動生成ボタンを押した時の処理
-    if (autoGenBtn && userIdInput) {
-        autoGenBtn.addEventListener('click', () => {
-            // ランダムな英数字6文字を生成（例: user_x8k2p9）
-            const randomId = 'user_' + Math.random().toString(36).substring(2, 8);
-            userIdInput.value = randomId;
-            
-            // 少しだけボタンを光らせる演出
-            autoGenBtn.style.background = 'rgba(2, 132, 199, 0.3)';
-            setTimeout(() => autoGenBtn.style.background = 'rgba(2, 132, 199, 0.1)', 200);
-        });
-    }
+    const userIdInput = document.getElementById('userId');
+    const userIdGroup = document.getElementById('userId-group');
 
     // ▼ タブ切り替え
     if (tabLogin && tabRegister) {
@@ -43,7 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
             nameGroup.style.display = 'none';
             userNameInput.required = false;
             submitBtn.textContent = 'ログイン';
-            if (autoGenBtn) autoGenBtn.style.display = 'none'; // 隠す
+            if (userIdGroup) userIdGroup.style.display = 'block';
+            if (userIdInput) userIdInput.required = true;
         });
 
         tabRegister.addEventListener('click', () => {
@@ -53,7 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
             nameGroup.style.display = 'block';
             userNameInput.required = true;
             submitBtn.textContent = 'アカウントを作成してログイン';
-            if (autoGenBtn) autoGenBtn.style.display = 'block'; // 表示！
+            if (userIdGroup) userIdGroup.style.display = 'none';
+            if (userIdInput) userIdInput.required = false;
         });
     }
 
@@ -62,23 +51,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authForm) {
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const userId = userIdInput.value.trim();
             const password = document.getElementById('password').value.trim();
             const name = userNameInput ? userNameInput.value.trim() : '';
-            
+
             if (isRegisterMode) {
-                // 新規登録モード
+                // 新規登録モード (Auto-generate ID)
+                const generatedUserId = 'user_' + Math.random().toString(36).substring(2, 8);
                 try {
                     const res = await fetch('/api/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: userId, password: password, name: name, role: currentRole })
+                        body: JSON.stringify({ username: generatedUserId, password: password, name: name, role: currentRole })
                     });
                     const data = await res.json();
-                    
+
                     if (res.ok || data.success) {
-                        alert(`🎉 アカウント作成成功！\n\nあなたのIDは「 ${userId} 」です。\n（忘れてもマイページで確認できます）`);
+                        alert(`🎉 アカウント作成成功！\n\nあなたのIDは「 ${generatedUserId} 」です。\n（次回ログイン時等に必要なのでメモしておいてください）`);
                         window.location.href = currentRole === 'admin' ? '/admin/index.html' : '/staff/index.html';
                     } else {
                         alert(data.error || data.message || '登録に失敗しました。');
@@ -95,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({ userId, password, role: currentRole })
                     });
                     const data = await res.json();
-                    
+
                     if (res.ok || data.success) {
                         window.location.href = currentRole === 'admin' ? '/admin/index.html' : '/staff/index.html';
                     } else {

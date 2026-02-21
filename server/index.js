@@ -16,7 +16,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const LINE_CLIENT_ID = process.env.LINE_CLIENT_ID;
 const LINE_CLIENT_SECRET = process.env.LINE_CLIENT_SECRET;
-const CALLBACK_URL = `http://localhost:${PORT}/api/line/callback`;
+
 
 // --- データベース操作 ---
 const readData = () => {
@@ -100,7 +100,10 @@ app.get('/api/line/login', (req, res) => {
         res.cookie('invite_flag', 'true', { maxAge: 1800000, httpOnly: true }); // 30分有効
     }
 
-    const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CLIENT_ID}&redirect_uri=${encodeURIComponent(CALLBACK_URL)}&state=${state}&scope=profile%20openid%20email&bot_prompt=normal`;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const callbackUrl = `${protocol}://${host}/api/line/callback`;
+    const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${state}&scope=profile%20openid%20email&bot_prompt=normal`;
     res.redirect(lineAuthUrl);
 });
 
@@ -109,8 +112,11 @@ app.get('/api/line/callback', async (req, res) => {
     if (state !== req.cookies.line_state) return res.status(400).send('不正アクセス');
 
     try {
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+        const host = req.get('host');
+        const callbackUrl = `${protocol}://${host}/api/line/callback`;
         const tokenRes = await axios.post('https://api.line.me/oauth2/v2.1/token', new URLSearchParams({
-            grant_type: 'authorization_code', code, redirect_uri: CALLBACK_URL, client_id: LINE_CLIENT_ID, client_secret: LINE_CLIENT_SECRET
+            grant_type: 'authorization_code', code, redirect_uri: callbackUrl, client_id: LINE_CLIENT_ID, client_secret: LINE_CLIENT_SECRET
         }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
         const profileRes = await axios.get('https://api.line.me/v2/profile', {

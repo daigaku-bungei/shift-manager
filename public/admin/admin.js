@@ -40,7 +40,7 @@ function switchSection(sectionName) {
     });
     document.getElementById(`${sectionName}-section`).classList.add('active');
 
-    switch(sectionName) {
+    switch (sectionName) {
         case 'dashboard': loadDashboard(); break;
         case 'shifts': loadShifts(); break;
         case 'members': loadMembers(); break;
@@ -81,13 +81,13 @@ async function loadShifts() {
 
         container.innerHTML = shifts.map(shift => {
             const assignedMember = members.find(m => m.id === shift.assigned_user_id);
-            
+
             // 🌟 追加：提出期限のラベルをカッコよく表示！
             let deadlineHtml = '';
             if (shift.deadline) {
                 const dt = new Date(shift.deadline);
                 const isExpired = dt < new Date();
-                deadlineHtml = `<div style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; ${isExpired ? 'background: #fee2e2; color: #ef4444;' : 'background: #fffbeb; color: #d97706; border: 1px solid #fcd34d;'}">⏰ 提出期限: ${dt.toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'numeric', minute:'numeric'})} ${isExpired ? '(終了)' : ''}</div>`;
+                deadlineHtml = `<div style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; ${isExpired ? 'background: #fee2e2; color: #ef4444;' : 'background: #fffbeb; color: #d97706; border: 1px solid #fcd34d;'}">⏰ 提出期限: ${dt.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} ${isExpired ? '(終了)' : ''}</div>`;
             }
 
             return `
@@ -206,13 +206,13 @@ async function loadShifts() {
                         <div style="margin-top: 15px;">
                             <strong style="margin-bottom: 10px; display: block;">「行ける」と回答したメンバー (${availableCount}名)</strong>
                             ${shiftResponses.filter(r => r.response === 'available').map(r => {
-                                const member = members.find(m => m.id === r.user_id);
-                                if (!member) return '';
-                                
-                                const reqSkill = shift.required_skill_level || 1;
-                                const canAssign = member.skill_level >= reqSkill;
-                                
-                                return `
+                const member = members.find(m => m.id === r.user_id);
+                if (!member) return '';
+
+                const reqSkill = shift.required_skill_level || 1;
+                const canAssign = member.skill_level >= reqSkill;
+
+                return `
                                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 8px;">
                                         <div>
                                             ${member.name} 
@@ -226,7 +226,7 @@ async function loadShifts() {
                                         ` : ''}
                                     </div>
                                 `;
-                            }).join('')}
+            }).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -401,7 +401,7 @@ async function loadResponses() {
         container.innerHTML = shifts.map(shift => {
             // 新しいデータ形式 (shiftId) に対応して回答を探す
             const shiftResponses = responses.filter(r => r.shiftId === shift.id || r.shift_id === shift.id);
-            
+
             if (shiftResponses.length === 0) {
                 return `
                 <div class="card">
@@ -415,7 +415,7 @@ async function loadResponses() {
             if (shift.dates && shift.dates.length > 0) {
                 shift.dates.forEach(dateInfo => {
                     const dateStr = formatDate(dateInfo.date);
-                    
+
                     // この日の「行ける」「条件付き」「むり」の人を分ける箱
                     const available = [];
                     const partial = [];
@@ -469,7 +469,7 @@ async function loadAnalytics() {
             const memberShifts = shifts.filter(s => s.assigned_user_id === member.id);
             const totalHours = memberShifts.reduce((sum, shift) => {
                 // シンプルな計算のための仮実装
-                return sum + 5; 
+                return sum + 5;
             }, 0);
 
             return { member, hours: totalHours };
@@ -618,14 +618,14 @@ function createDayElement(day, className = '', isToday = false, isSelected = fal
 // ドラッグでなぞった範囲を処理する関数
 function processDragSelection(currentDateObj) {
     if (!dragStartDate) return;
-    
+
     const start = dragStartDate < currentDateObj ? dragStartDate : currentDateObj;
     const end = dragStartDate < currentDateObj ? currentDateObj : dragStartDate;
-    
+
     // 一括設定欄の時間を取得
     const bulkStart = document.getElementById('bulk-start-time') ? document.getElementById('bulk-start-time').value : '09:00';
     const bulkEnd = document.getElementById('bulk-end-time') ? document.getElementById('bulk-end-time').value : '18:00';
-    
+
     let loop = new Date(start);
     while (loop <= end) {
         const dStr = formatDateForCalendar(loop);
@@ -642,7 +642,7 @@ function processDragSelection(currentDateObj) {
         }
         loop.setDate(loop.getDate() + 1);
     }
-    
+
     renderCalendar();
     updateSelectedDatesList();
 }
@@ -651,12 +651,12 @@ function processDragSelection(currentDateObj) {
 function applyBulkTime() {
     const bulkStart = document.getElementById('bulk-start-time').value;
     const bulkEnd = document.getElementById('bulk-end-time').value;
-    
+
     selectedDates.forEach((data, dateStr) => {
         data.startTime = bulkStart;
         data.endTime = bulkEnd;
     });
-    
+
     updateSelectedDatesList();
 }
 
@@ -756,9 +756,20 @@ window.addEventListener('mouseup', (e) => {
         renderCalendar();
         updateSelectedDatesList();
     }
-    // モーダルの外側クリック
+});
+
+// モーダルの外側（暗い部分）をクリックしたら閉じる
+window.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal')) {
-        e.target.classList.remove('active');
+        if (e.target.id === 'create-shift-modal' && typeof closeCreateShiftModal === 'function') {
+            closeCreateShiftModal();
+        } else if (e.target.id === 'add-member-modal' && typeof closeAddMemberModal === 'function') {
+            closeAddMemberModal();
+        } else if (e.target.id === 'edit-member-modal' && typeof closeModal === 'function') {
+            closeModal('edit-member-modal');
+        } else {
+            e.target.classList.remove('active');
+        }
     }
 });
 // ========== シフト一括作成機能 ==========
@@ -767,7 +778,7 @@ async function createComplexShift() {
     const description = document.getElementById('shift-description').value.trim();
     const responseType = document.getElementById('response-type') ? document.getElementById('response-type').value : 'slot';
     const slotInterval = document.getElementById('slot-interval') ? document.getElementById('slot-interval').value : '30';
-    
+
     // 🌟 1. HTMLから期限のデータを取得する！
     const deadline = document.getElementById('shift-deadline') ? document.getElementById('shift-deadline').value : '';
 
@@ -790,8 +801,8 @@ async function createComplexShift() {
         responseType: responseType,
         slotInterval: slotInterval,
         deadline: deadline, // 🌟 3. サーバーに送るデータ（ボール）に期限を入れる！
-        dates: dates, 
-        required_skill_level: 1 
+        dates: dates,
+        required_skill_level: 1
     };
 
     try {
@@ -806,7 +817,7 @@ async function createComplexShift() {
             showAlert('シフトを作成して公開しました！', 'success');
             closeCreateShiftModal();
             // 🌟 4. 次開いた時のために期限の入力欄を空に戻しておく
-            if(document.getElementById('shift-deadline')) document.getElementById('shift-deadline').value = '';
+            if (document.getElementById('shift-deadline')) document.getElementById('shift-deadline').value = '';
             loadShifts();
             loadDashboard();
         } else {
@@ -851,7 +862,7 @@ async function searchStaff() {
             // 見つかったら結果エリアを表示！
             document.getElementById('search-result-name').textContent = result.user.name + ' さん';
             document.getElementById('search-result-id').textContent = result.user.username;
-            
+
             // 状態によって表示を変える
             if (result.user.role === 'staff' || result.user.role === 'admin') {
                 document.getElementById('search-result-area').innerHTML = '<p style="color: var(--success); font-weight: bold;">✅ すでにスタッフとして登録済みです！</p>';

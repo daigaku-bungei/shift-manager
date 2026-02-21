@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,57 +8,171 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
+
   <link rel="stylesheet" href="/css/styles.css">
 
   <style>
-    :root, :root[data-theme="dark"], html[data-theme="dark"], body[data-theme="dark"], body {
-        --bg-dark: #e2e8f0 !important;
-        --bg-secondary: #ffffff !important;
-        --bg-tertiary: #f1f5f9 !important;
-        --accent-primary: #0284c7 !important;
-        --accent-secondary: #38bdf8 !important;
-        --text-primary: #334155 !important;
-        --text-muted: #64748b !important;
-        --border-color: #cbd5e1 !important;
+    :root,
+    :root[data-theme="dark"],
+    html[data-theme="dark"],
+    body[data-theme="dark"],
+    body {
+      --bg-dark: #e2e8f0 !important;
+      --bg-secondary: #ffffff !important;
+      --bg-tertiary: #f1f5f9 !important;
+      --accent-primary: #0284c7 !important;
+      --accent-secondary: #38bdf8 !important;
+      --text-primary: #334155 !important;
+      --text-muted: #64748b !important;
+      --border-color: #cbd5e1 !important;
     }
 
-    html, body { margin: 0; padding: 0; height: 100%; background-color: var(--bg-dark) !important; }
-    
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: var(--bg-dark) !important;
+    }
+
     .login-page {
-        display: flex !important; justify-content: center !important; align-items: center !important;
-        min-height: 100vh !important; background-color: var(--bg-dark) !important; padding: 20px;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      min-height: 100vh !important;
+      background-color: var(--bg-dark) !important;
+      padding: 20px;
     }
 
     .login-card {
-        background-color: var(--bg-secondary) !important; border: 1px solid var(--border-color) !important;
-        box-shadow: 0 10px 30px rgba(2, 132, 199, 0.1) !important; border-radius: 16px !important;
-        width: 100% !important; max-width: 420px !important; padding: 40px 30px !important; box-sizing: border-box;
+      background-color: var(--bg-secondary) !important;
+      border: 1px solid var(--border-color) !important;
+      box-shadow: 0 10px 30px rgba(2, 132, 199, 0.1) !important;
+      border-radius: 16px !important;
+      width: 100% !important;
+      max-width: 420px !important;
+      padding: 40px 30px !important;
+      box-sizing: border-box;
     }
 
     .login-title {
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        font-weight: 700; margin-top: 0; margin-bottom: 10px !important; text-align: center; font-size: 28px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 10px !important;
+      text-align: center;
+      font-size: 28px;
     }
+
     /* 🌟 追加：タブ切り替えのスタイル */
-    .auth-tabs { display: flex; justify-content: center; gap: 30px; border-bottom: 2px solid var(--border-color); margin-bottom: 25px; }
-    .auth-tab { font-weight: 700; font-size: 16px; padding-bottom: 10px; cursor: pointer; color: var(--text-muted); transition: 0.3s; margin-bottom: -2px; border-bottom: 3px solid transparent; }
-    .auth-tab.active { color: var(--accent-primary); border-bottom: 3px solid var(--accent-primary); }
+    .auth-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 25px;
+    }
 
-    .login-role-toggle { display: flex; gap: 10px; margin-bottom: 25px; background: var(--bg-tertiary); padding: 5px; border-radius: 10px; }
-    .login-role-toggle .btn { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 600; transition: all 0.3s; font-size: 15px; }
-    .login-role-toggle .btn.active { background-color: var(--bg-secondary) !important; color: var(--accent-primary) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .auth-tab {
+      font-weight: 700;
+      font-size: 16px;
+      padding-bottom: 10px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: 0.3s;
+      margin-bottom: -2px;
+      border-bottom: 3px solid transparent;
+    }
 
-    .form-group { margin-bottom: 20px; text-align: left; }
-    .form-group label { display: block; margin-bottom: 8px; color: var(--text-primary) !important; font-weight: 600; font-size: 14px; }
-    .form-control { width: 100%; padding: 14px 16px; background-color: var(--bg-tertiary) !important; border: 1px solid var(--border-color) !important; color: var(--text-primary) !important; border-radius: 8px; font-size: 15px; transition: all 0.3s !important; box-sizing: border-box; }
-    .form-control:focus { background-color: #ffffff !important; border-color: var(--accent-primary) !important; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1) !important; outline: none; }
+    .auth-tab.active {
+      color: var(--accent-primary);
+      border-bottom: 3px solid var(--accent-primary);
+    }
 
-    .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important; border: none !important; color: white !important; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s !important; margin-top: 10px; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(2, 132, 199, 0.3) !important; }
+    .login-role-toggle {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 25px;
+      background: var(--bg-tertiary);
+      padding: 5px;
+      border-radius: 10px;
+    }
+
+    .login-role-toggle .btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      font-size: 15px;
+    }
+
+    .login-role-toggle .btn.active {
+      background-color: var(--bg-secondary) !important;
+      color: var(--accent-primary) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-primary) !important;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 14px 16px;
+      background-color: var(--bg-tertiary) !important;
+      border: 1px solid var(--border-color) !important;
+      color: var(--text-primary) !important;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.3s !important;
+      box-sizing: border-box;
+    }
+
+    .form-control:focus {
+      background-color: #ffffff !important;
+      border-color: var(--accent-primary) !important;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1) !important;
+      outline: none;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+      border: none !important;
+      color: white !important;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s !important;
+      margin-top: 10px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(2, 132, 199, 0.3) !important;
+    }
   </style>
 </head>
+
 <body>
   <div class="login-page">
     <div class="login-card">
@@ -67,8 +182,8 @@
       </p>
 
       <div class="auth-tabs">
-          <div class="auth-tab active" id="tab-login">ログイン</div>
-          <div class="auth-tab" id="tab-register">新規登録</div>
+        <div class="auth-tab active" id="tab-login">ログイン</div>
+        <div class="auth-tab" id="tab-register">新規登録</div>
       </div>
 
       <div class="login-role-toggle">
@@ -82,10 +197,9 @@
           <input type="text" id="userName" class="form-control" placeholder="例: 渋谷 太郎">
         </div>
 
-        <div class="form-group">
-          <label for="userId" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="form-group" id="userId-group">
+          <label for="userId">
             <span>ユーザーID</span>
-            <span id="auto-gen-btn" style="display: none; color: var(--accent-primary); font-size: 12px; cursor: pointer; padding: 4px 8px; background: rgba(2, 132, 199, 0.1); border-radius: 4px; font-weight: bold; transition: 0.2s;">⚡️ 自動生成</span>
           </label>
           <input type="text" id="userId" class="form-control" placeholder="IDを入力" required>
         </div>
@@ -98,7 +212,8 @@
 
       <div style="margin-top: 20px; text-align: center;">
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">または</p>
-        <a href="/api/line/login" class="btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; background-color: #06C755; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; transition: 0.3s;">
+        <a href="/api/line/login" class="btn"
+          style="display: flex; align-items: center; justify-content: center; gap: 10px; background-color: #06C755; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; transition: 0.3s;">
           <span>LINEで ログイン / 新規登録</span>
         </a>
       </div>
@@ -113,4 +228,5 @@
   <script src="/js/auth.js"></script>
   <script src="/js/login.js"></script>
 </body>
+
 </html>
