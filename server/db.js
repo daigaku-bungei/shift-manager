@@ -34,6 +34,8 @@ module.exports = {
     return loadData();
   },
 
+  saveData,
+
   addAdmin({ id, name, password }) {
     const data = loadData();
     if (data.admins.some(a => a.id === id)) {

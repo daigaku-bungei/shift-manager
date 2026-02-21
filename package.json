@@ -7,10 +7,17 @@
     "start": "node server/index.js",
     "dev": "node server/index.js"
   },
-  "keywords": ["shift", "schedule", "management"],
+  "keywords": [
+    "shift",
+    "schedule",
+    "management"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.13.5",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.3.1",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
     "uuid": "^9.0.0"

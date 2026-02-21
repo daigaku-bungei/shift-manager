@@ -3,7 +3,7 @@
  */
 
 async function checkSession() {
-  const res = await fetch('/api/session');
+  const res = await fetch('/api/mesession');
   const data = await res.json();
   if (!data.loggedIn) {
     window.location.href = '/';
@@ -13,7 +13,7 @@ async function checkSession() {
 }
 
 async function logout() {
-  await fetch('/api/logout', { method: 'POST' });
+  await fetch('/api/melogout', { method: 'POST' });
   window.location.href = '/';
 }
 

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マイページ - Urban Shift Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+        --bg-dark: #e2e8f0;
+        --bg-secondary: #ffffff;
+        --accent-primary: #0284c7;
+        --text-primary: #334155;
+        --text-muted: #64748b;
+        --border-color: #cbd5e1;
+    }
+    body {
+        font-family: 'Noto Sans JP', sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-primary);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+    }
+    .profile-card {
+        background: var(--bg-secondary);
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(2, 132, 199, 0.1);
+        width: 100%;
+        max-width: 400px;
+    }
+    .profile-title {
+        text-align: center;
+        color: var(--accent-primary);
+        margin-top: 0;
+        margin-bottom: 30px;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 15px;
+    }
+    .info-group {
+        margin-bottom: 20px;
+    }
+    .info-label {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .info-value {
+        font-size: 18px;
+        font-weight: 500;
+        background: #f8fafc;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    .btn-back {
+        display: block;
+        text-align: center;
+        background: var(--text-muted);
+        color: white;
+        text-decoration: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-top: 30px;
+        transition: 0.3s;
+    }
+    .btn-back:hover {
+        background: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="profile-card">
+    <h2 class="profile-title">👤 アカウント情報</h2>
+    
+    <div class="info-group">
+      <div class="info-label">お名前</div>
+      <div class="info-value" id="myName">読み込み中...</div>
+    </div>
+
+    <div class="info-group">
+      <div class="info-label">ログインID</div>
+      <div class="info-value" id="myUsername">読み込み中...</div>
+    </div>
+
+    <div class="info-group">
+      <div class="info-label">アカウント権限</div>
+      <div class="info-value" id="myRole">読み込み中...</div>
+    </div>
+
+    <a href="javascript:history.back()" class="btn-back">戻る</a>
+  </div>
+
+  <script src="/js/mypage.js"></script>
+</body>
+</html>

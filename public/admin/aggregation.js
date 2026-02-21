@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadAggregation(id) {
-  const res = await fetch(`/api/recruitments/${id}/aggregation`);
+  const res = await fetch(`/api/merecruitments/${id}/aggregation`);
   if (!res.ok) {
     alert('募集が見つかりません');
     window.location.href = '/admin/';

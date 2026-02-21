@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadStaffGroups() {
-  const res = await fetch('/api/staff');
+  const res = await fetch('/api/mestaff');
   const staff = await res.json();
   const groups = [...new Set(staff.map(s => s.group).filter(Boolean))];
   const select = document.getElementById('targetGroup');
@@ -95,7 +95,7 @@ async function submitRecruitment(e) {
   }
 
   try {
-    const res = await fetch('/api/recruitments', {
+    const res = await fetch('/api/merecruitments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, slots, targetGroup })

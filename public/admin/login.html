@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - Urban Shift Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: #a0a0a0;
+            font-size: 16px;
+        }
+
+        .login-box {
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0a0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            background: #252525;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .demo-accounts {
+            margin-top: 30px;
+            padding: 20px;
+            background: #252525;
+            border: 1px solid #333333;
+            border-radius: 8px;
+        }
+
+        .demo-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #a0a0a0;
+            text-align: center;
+        }
+
+        .demo-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #333333;
+            font-size: 13px;
+        }
+
+        .demo-item:last-child {
+            border-bottom: none;
+        }
+
+        .demo-label {
+            color: #a0a0a0;
+        }
+
+        .demo-value {
+            font-family: 'Courier New', monospace;
+            color: #667eea;
+        }
+
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 36px;
+            }
+
+            .login-box {
+                padding: 30px 20px;
+            }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #252525;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-section">
+            <div class="logo">Urban Shift Studio</div>
+            <div class="tagline">スマートなシフト管理システム</div>
+        </div>
+
+        <div class="login-box">
+            <h2 class="login-title">ログイン</h2>
+
+            <div id="alert-container"></div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="color: #a0a0a0;">ログイン中...</p>
+            </div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label">ユーザー名</label>
+                    <input 
+                        type="text" 
+                        class="form-control" 
+                        name="username" 
+                        required 
+                        autofocus
+                        placeholder="ユーザー名を入力"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">パスワード</label>
+                    <input 
+                        type="password" 
+                        class="form-control" 
+                        name="password" 
+                        required
+                        placeholder="パスワードを入力"
+                    >
+                </div>
+
+                <button type="submit" class="btn-login">ログイン</button>
+            </form>
+
+            <div class="demo-accounts">
+                <div class="demo-title">デモアカウント</div>
+                <div class="demo-item">
+                    <span class="demo-label">管理者</span>
+                    <span class="demo-value">admin / admin123</span>
+                </div>
+                <div class="demo-item">
+                    <span class="demo-label">スタッフ</span>
+                    <span class="demo-value">staff1 / staff123</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ログインフォーム処理
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const credentials = Object.fromEntries(formData);
+            
+            // ローディング表示
+            document.getElementById('loading').classList.add('active');
+            e.target.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(credentials)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // ログイン成功
+                    if (data.user.role === 'admin') {
+                        window.location.href = '/admin';
+                    } else {
+                        window.location.href = '/staff';
+                    }
+                } else {
+                    // ログイン失敗
+                    showAlert(data.error || 'ログインに失敗しました');
+                    document.getElementById('loading').classList.remove('active');
+                    e.target.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('ログインエラー:', error);
+                showAlert('ログインに失敗しました。もう一度お試しください。');
+                document.getElementById('loading').classList.remove('active');
+                e.target.style.display = 'block';
+            }
+        });
+
+        // アラート表示
+        function showAlert(message) {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-error';
+            alert.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        }
+
+        // セッションチェック
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/api/meme', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    // 既にログイン済み
+                    if (user.role === 'admin') {
+                        window.location.href = '/admin';
+                    } else {
+                        window.location.href = '/staff';
+                    }
+                }
+            } catch (error) {
+                // セッションなし（正常）
+            }
+        });
+    </script>
+</body>
+</html>

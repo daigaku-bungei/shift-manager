@@ -1,36 +1,313 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>スタッフ - シフト管理システム</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スタッフ画面 - Urban Shift Studio</title>
+   <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            /* 🌃 Urbanテーマのカラーパレット */
+            --bg-base: #f8fafc;       /* ベースの背景色（少し冷たいグレー） */
+            --bg-glass: rgba(255, 255, 255, 0.8); /* すりガラスの背景色 */
+            --border-glass: rgba(255, 255, 255, 0.5); /* ガラスの境界線 */
+            
+            --accent-primary: #0284c7;   /* メインの青 */
+            --accent-glow: rgba(2, 132, 199, 0.5); /* ネオンのような光彩 */
+            
+            --text-primary: #1e293b;   /* 深い青グレーの文字色 */
+            --text-secondary: #64748b; /* セカンダリーテキスト */
+            
+            --border-color: #e2e8f0;   /* 通常の境界線 */
+            --success: #10b981; 
+            --warning: #f59e0b; 
+            --danger: #ef4444;  
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            /* 都会の空をイメージした微細なグラデーション背景 */
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 16px;
+            padding-bottom: 90px; /* 下部ナビの分 */
+            min-height: 100vh;
+        }
+
+        /* 💎 ヘッダー（すりガラス効果） */
+        .header {
+            background: var(--bg-glass); /* 半透明 */
+            backdrop-filter: blur(12px); /* 背景をぼかす */
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo {
+            font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6); /* より鮮やかな青グラデ */
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        
+        .container { padding: 25px 20px; max-width: 600px; margin: 0 auto; }
+
+        /* 💎 下部ナビ（すりガラス効果） */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--bg-glass); /* 半透明 */
+            backdrop-filter: blur(12px); /* 背景をぼかす */
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border-glass);
+            display: flex; justify-content: space-around; padding: 12px 0;
+            z-index: 1000;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 11px; font-weight: 600; cursor: pointer; width: 33%; transition: 0.3s;
+        }
+        .nav-item.active { color: var(--accent-primary); transform: translateY(-2px); }
+        .nav-icon { font-size: 24px; margin-bottom: 4px; }
+
+        .section { display: none; }
+        .section.active { display: block; animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 💎 カード（すりガラス ＆ 立体感） */
+        .card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px; /* 角丸を少し強調 */
+            padding: 24px;
+            margin-bottom: 24px;
+            /* 都会的なシャープな影 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+
+        /* ネオンのように光る強調カード */
+        .shift-card {
+            border-left: 4px solid var(--accent-primary);
+            position: relative;
+            overflow: hidden;
+        }
+        .shift-card::before { /* 左端に青い光を足す */
+            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--accent-primary);
+            box-shadow: 0 0 15px 2px var(--accent-glow);
+        }
+
+        .shift-title { font-size: 20px; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.5px; }
+        .shift-meta { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+
+        .btn {
+            display: block; width: 100%; padding: 14px; border: none; border-radius: 12px;
+            font-weight: 700; font-size: 16px; cursor: pointer; transition: all 0.3s; text-align: center; letter-spacing: 0.5px;
+        }
+        /* ネオンのように発光するボタン */
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-glow); /* 青い光彩 */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn-primary:hover { box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6); transform: translateY(-1px); }
+        .btn-primary:active { transform: scale(0.98); box-shadow: 0 2px 10px var(--accent-glow); }
+
+        /* 統計ボックス */
+        .stats-row { display: flex; gap: 15px; margin-bottom: 25px; }
+        .stat-box {
+            flex: 1; background: var(--bg-glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 16px; padding: 20px; text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.3s;
+        }
+        .stat-box:hover { transform: translateY(-3px); }
+        .stat-num {
+            font-size: 36px; font-weight: 900;
+            background: linear-gradient(135deg, #0ea5e9, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* ▼▼▼ モーダル（ここもすりガラス化！） ▼▼▼ */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.4); /* 背景を少し暗く都会的に */
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            z-index: 2000; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.9); /* 少し不透明度を上げる */
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            width: 100%; max-width: 480px; max-height: 85vh;
+            border-radius: 20px; padding: 30px; overflow-y: auto; animation: popIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* 入力カード（ここもすりガラス） */
+        .day-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            border-radius: 12px; padding: 15px; margin-bottom: 12px; transition: 0.2s;
+        }
+        .day-card:focus-within {
+            border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .day-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+        .day-date { font-weight: 800; font-size: 15px; color: var(--text-primary); }
+        .day-time-box { display: flex; align-items: center; gap: 5px; transition: opacity 0.3s; }
+        
+       /* ▼ 時間入力エリア全体（上のボタンとの隙間をあけて、ほんのり背景をつける） ▼ */
+        .time-inputs {
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-top: 15px; /* ★ここ！ボタンとの隙間をしっかり取る */
+            padding: 12px 15px; 
+            background: rgba(0, 0, 0, 0.03); /* エリアを分かりやすくする微かな背景 */
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+        }
+        
+        /* ▼ 時間を入力する枠（幅を広げて時計アイコンとの被りを解消！） ▼ */
+        .time-input {
+            padding: 8px 10px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 6px;
+            font-size: 15px; 
+            width: 120px; /* ★90px -> 120px に広げて被りを解決！ */
+            text-align: center; 
+            background: #ffffff;
+            font-family: monospace; 
+            font-weight: bold; 
+            color: var(--text-primary); 
+            transition: 0.3s;
+        }
+        .time-input:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 2px var(--accent-glow); }
+        .time-input:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: transparent; }
+        /* 一体型ボタン */
+        .availability-buttons {
+            display: flex; width: 100%; border: 1px solid var(--border-color);
+            border-radius: 10px; overflow: hidden; background: rgba(241, 245, 249, 0.8);
+        }
+        .avail-btn {
+            flex: 1; padding: 10px 0; border: none; border-right: 1px solid var(--border-color);
+            background: transparent; font-size: 13px; font-weight: 700; color: var(--text-secondary);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .avail-btn:last-child { border-right: none; }
+        .avail-btn:hover:not(.selected-circle):not(.selected-triangle):not(.selected-cross) { background: rgba(255, 255, 255, 0.5); }
+
+        .avail-btn.selected-circle { background: #d1fae5; color: #059669; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .avail-btn.selected-triangle { background: #fef3c7; color: #d97706; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .avail-btn.selected-cross { background: #fee2e2; color: #dc2626; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+
+        textarea {
+            width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8); font-family: inherit; transition: 0.3s;
+        }
+        textarea:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .empty-state { text-align: center; padding: 50px 0; color: var(--text-secondary); font-weight: 600; }
+    </style>
 </head>
 <body>
-  <div class="app">
-    <header class="header">
-      <span class="header-logo">シフト管理システム - スタッフ</span>
-      <div class="header-nav">
-        <span class="header-user" id="userName"></span>
-        <button type="button" class="btn btn-secondary btn-sm" id="logoutBtn">ログアウト</button>
-      </div>
+
+   <header class="header">
+        <div class="logo">Urban Shift Studio</div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="user-badge" id="user-name-badge">ゲスト</div>
+            <button onclick="logout()" style="padding: 6px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; color: var(--text-secondary); transition: 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='var(--bg-tertiary)'">ログアウト</button>
+        </div>
     </header>
 
-    <main class="main">
-      <h1 style="margin-bottom: 1.5rem;">回答する募集</h1>
-      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
-        あなた宛の募集一覧です。各募集の日程に対して「○・△・×」で可否を入力してください。<br>
-        あなたの回答は他のスタッフには見えません。
-      </p>
+    <div class="container">
+        <section id="dashboard-section" class="section active">
+            <h2 style="margin-bottom: 15px;">👋 お疲れ様です！</h2>
+            <div class="stats-row">
+                <div class="stat-box"><div class="stat-num" id="stat-pending">0</div><div class="stat-label">未提出の募集</div></div>
+                <div class="stat-box"><div class="stat-num" id="stat-confirmed" style="color: var(--success);">0</div><div class="stat-label">確定したシフト</div></div>
+            </div>
+            <h3 style="margin-bottom: 15px;">📢 新着の募集</h3>
+            <div id="dashboard-shift-list"></div>
+        </section>
 
-      <div id="recruitmentList"></div>
-    </main>
-  </div>
+        <section id="shifts-section" class="section">
+            <h2 style="margin-bottom: 15px;">📝 シフト提出</h2>
+            <div id="available-shifts-list"></div>
+        </section>
 
-  <script src="../js/auth.js"></script>
-  <script src="staff.js"></script>
+        <section id="my-shifts-section" class="section">
+            <h2 style="margin-bottom: 15px;">📅 あなたの確定シフト</h2>
+            <div id="my-shifts-list"></div>
+        </section>
+        <section id="mypage-section" class="section">
+            <h2 style="margin-bottom: 20px; color: var(--text-primary);">👤 マイページ</h2>
+            
+            <div class="card" style="text-align: center; padding: 40px 20px;">
+                <div style="font-size: 60px; margin-bottom: 15px;">🧑‍💻</div>
+                <h3 id="mypage-name" style="font-size: 24px; margin-bottom: 5px; color: var(--text-primary);">名前</h3>
+                
+                <div style="margin: 25px 0; padding: 20px; background: rgba(2, 132, 199, 0.05); border: 1px dashed var(--accent-primary); border-radius: 12px;">
+                    <p style="color: var(--text-secondary); font-size: 13px; font-weight: bold; margin-bottom: 10px;">店長に伝えるあなたのID</p>
+                    <strong id="mypage-id" style="font-size: 28px; color: var(--accent-primary); letter-spacing: 2px;">@id</strong>
+                </div>
+                
+                <hr style="border: none; border-top: 1px dashed var(--border-color); margin: 30px 0;">
+                
+                <button onclick="logout()" class="btn" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); max-width: 250px; margin: 0 auto; box-shadow: none;">
+                    🚪 ログアウト
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <div id="submission-modal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 id="modal-shift-title" style="font-size: 18px;">シフト提出</h3>
+                <button onclick="closeSubmissionModal()" style="background:none; border:none; font-size: 24px; color: #999;">&times;</button>
+            </div>
+
+            <div id="submission-days-container"></div>
+
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;">備考・コメント</label>
+                <textarea id="submission-comment" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px;" rows="2" placeholder="店長への伝言があれば..."></textarea>
+            </div>
+
+            <button class="btn btn-primary" onclick="submitShiftData()" style="margin-top: 20px;">
+                この内容で提出する 🚀
+            </button>
+        </div>
+    </div>
+
+   <nav class="bottom-nav">
+        <a class="nav-item active" data-section="dashboard"><div class="nav-icon">🏠</div><span>ホーム</span></a>
+        <a class="nav-item" data-section="shifts"><div class="nav-icon">📝</div><span>シフト提出</span></a>
+        <a class="nav-item" data-section="my-shifts"><div class="nav-icon">📅</div><span>確定シフト</span></a>
+        <a class="nav-item" data-section="mypage"><div class="nav-icon">👤</div><span>マイページ</span></a>
+    </nav>
+
+    <script src="/staff/staff.js"></script>
 </body>
 </html>
