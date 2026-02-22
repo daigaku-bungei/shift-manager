@@ -13,7 +13,16 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 app.use(express.json());
 app.use(cookieParser());
 app.set('trust proxy', 1); // Render等のリバースプロキシ環境でHTTPSプロトコルを正しく判別するために追加
-// HTML\u30d5\u30a1\u30a4\u30eb\u306f\u30ad\u30e3\u30c3\u30b7\u30e5\u3057\u306a\u3044\u3002\u305d\u306e\u4ed6\u306e\u9759\u7684\u30d5\u30a1\u30a4\u30eb\u306f1\u6642\u9593\u30ad\u30e3\u30c3\u30b7\u30e5\napp.use((req, res, next) => {\n    if (req.path.endsWith('.html') || req.path === '/') {\n        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');\n        res.setHeader('Pragma', 'no-cache');\n        res.setHeader('Expires', '0');\n    }\n    next();\n});\napp.use(express.static(path.join(__dirname, '../public')));
+// HTMLファイルはキャッシュしない。その他の静的ファイルは1時間キャッシュ
+app.use(express.static(path.join(__dirname, '../public'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 
 const LINE_CLIENT_ID = process.env.LINE_CLIENT_ID;
 const LINE_CLIENT_SECRET = process.env.LINE_CLIENT_SECRET;
