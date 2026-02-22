@@ -280,6 +280,43 @@ app.get('/api/responses', (req, res) => {
     res.json(readData().responses || []);
 });
 
+// シフト回答を提出する
+app.post('/api/responses', (req, res) => {
+    const data = readData();
+    const { shiftId, userId, userName, comment, dailyResponses, submittedAt } = req.body;
+
+    if (!shiftId || !userId) {
+        return res.status(400).json({ error: 'shiftId と userId は必須です' });
+    }
+
+    // 既存の回答があれば上書き、なければ追加
+    const existingIndex = (data.responses || []).findIndex(
+        r => (r.shiftId === shiftId || r.shift_id === shiftId) && (r.userId === userId || r.user_id === userId)
+    );
+
+    const newResponse = {
+        id: Date.now().toString(),
+        shiftId,
+        shift_id: shiftId,
+        userId,
+        user_id: userId,
+        userName,
+        comment: comment || '',
+        dailyResponses: dailyResponses || [],
+        submittedAt: submittedAt || new Date().toISOString()
+    };
+
+    if (!data.responses) data.responses = [];
+
+    if (existingIndex >= 0) {
+        data.responses[existingIndex] = newResponse;
+    } else {
+        data.responses.push(newResponse);
+    }
+
+    writeData(data);
+    res.status(201).json({ success: true, response: newResponse });
+});
 
 
 app.post('/api/shifts', (req, res) => {
