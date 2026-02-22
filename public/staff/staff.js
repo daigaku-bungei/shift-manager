@@ -1,7 +1,7 @@
 let currentUser = null;
 let allShifts = [];
 let allResponses = [];
-let currentSubmittingShift = null;
+
 
 // ==========================================
 // 1. 初期設定 ＆ 画面の準備
@@ -117,11 +117,29 @@ function renderDashboard() {
     if (pendingShifts.length === 0) {
         dashboardList.innerHTML = '<div class="empty-state">現在、新しい募集はありません☕️</div>';
     } else {
-        dashboardList.innerHTML = createShiftCardsHTML(pendingShifts.slice(0, 3));
+        dashboardList.innerHTML = pendingShifts.slice(0, 3).map(shift => {
+            const deadlineInfo = getDeadlineInfo(shift.deadline);
+            return `
+            <div class="card shift-card">
+                <h3 style="font-size: 15px; font-weight: 800; margin-bottom: 6px;">${shift.title || '名称未設定'}</h3>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">
+                    📝 ${shift.description || '詳細なし'}
+                    ${shift.deadline ? ` | ⏰ ${deadlineInfo.text}` : ''}
+                </div>
+                <button class="btn btn-primary" style="font-size: 13px; padding: 10px;" onclick="document.querySelector('[data-section=shifts]').click(); setTimeout(() => selectShiftForSubmission('${shift.id}'), 100);">
+                    回答を入力する 🚀
+                </button>
+            </div>`;
+        }).join('');
     }
 }
 
-// ▼ シフト提出（未回答）一覧の描画
+// ▼ シフト提出（未回答）一覧の描画 → 2カラムレイアウト
+let currentSelectedShift = null;
+let currentSelectedDateIndex = null;
+let slotResponses = {}; // { 'dateIndex-slotIndex': 'available'|'partial'|'unavailable' }
+let shiftCalendarDate = new Date();
+
 function renderAvailableShifts() {
     if (!currentUser) return;
     const myRespondedShiftIds = allResponses.filter(r => r.userId === currentUser.id).map(r => r.shiftId);
@@ -130,136 +148,317 @@ function renderAvailableShifts() {
         (!s.deadline || new Date(s.deadline) > new Date())
     );
 
-    const list = document.getElementById('available-shifts-list');
+    const tabsContainer = document.getElementById('shift-selector-tabs');
+    const submitArea = document.getElementById('shift-submit-area');
+
     if (availableShifts.length === 0) {
-        list.innerHTML = '<div class="empty-state">未提出の募集はすべて完了しました！🎉</div>';
-    } else {
-        list.innerHTML = createShiftCardsHTML(availableShifts);
+        tabsContainer.innerHTML = '';
+        submitArea.innerHTML = '<div class="empty-state">未提出の募集はすべて完了しました！🎉</div>';
+        return;
     }
-}
 
-// ▼ カードのHTMLを作る共通関数
-function createShiftCardsHTML(shiftsArray) {
-    return shiftsArray.map(shift => {
-        const deadlineInfo = getDeadlineInfo(shift.deadline);
-        const badgeClass = deadlineInfo.isUrgent ? 'deadline-badge urgent' : 'deadline-badge';
-
-        return `
-        <div class="card shift-card">
-            <h3 class="shift-title">${shift.title || '名称未設定'}</h3>
-            <div class="shift-meta">
-                <span>📝 ${shift.description || '詳細なし'}</span>
-                ${shift.deadline ? `<span class="${badgeClass}">⏰ 期限: ${new Date(shift.deadline).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} (${deadlineInfo.text})</span>` : ''}
-            </div>
-            <button class="btn btn-primary" onclick="openSubmissionModal('${shift.id}')">
-                回答を入力する 🚀
-            </button>
-        </div>
-        `;
+    // シフト選択タブを描画
+    tabsContainer.innerHTML = availableShifts.map((shift, i) => {
+        const isActive = currentSelectedShift && currentSelectedShift.id === shift.id;
+        return `<button class="shift-tab ${isActive ? 'active' : ''}" onclick="selectShiftForSubmission('${shift.id}')">${shift.title || '名称未設定'}</button>`;
     }).join('');
-}
 
-// ==========================================
-// 3. モーダル（日別の回答入力画面）の魔法
-// ==========================================
-function openSubmissionModal(shiftId) {
-    currentSubmittingShift = allShifts.find(s => s.id === shiftId);
-    if (!currentSubmittingShift) return;
-
-    document.getElementById('modal-shift-title').textContent = currentSubmittingShift.title;
-    document.getElementById('submission-comment').value = '';
-
-    const container = document.getElementById('submission-days-container');
-    container.innerHTML = '';
-
-    if (currentSubmittingShift.dates && currentSubmittingShift.dates.length > 0) {
-        currentSubmittingShift.dates.forEach((dateInfo, index) => {
-            const dateStr = new Date(dateInfo.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', weekday: 'short' });
-
-            const dayRow = document.createElement('div');
-            dayRow.className = 'submission-row';
-            dayRow.innerHTML = `
-                <span class="date-label">${dateStr} (${dateInfo.startTime}〜${dateInfo.endTime})</span>
-                
-                <div class="availability-buttons" id="btn-group-${index}">
-                    <button class="avail-btn circle" onclick="selectAvail(${index}, 'circle')">◯ 行ける</button>
-                    <button class="avail-btn triangle" onclick="selectAvail(${index}, 'triangle')">△ 条件付き</button>
-                    <button class="avail-btn cross selected-cross" onclick="selectAvail(${index}, 'cross')">✕ むり</button>
-                </div>
-                
-                <div class="time-inputs" id="time-inputs-${index}">
-                    <span style="font-size: 12px; color: var(--text-secondary);">入れる時間:</span>
-                    <input type="time" class="time-input" id="start-${index}" value="${dateInfo.startTime}">
-                    <span>〜</span>
-                    <input type="time" class="time-input" id="end-${index}" value="${dateInfo.endTime}">
-                </div>
-            `;
-            container.appendChild(dayRow);
-        });
+    // 最初のシフトを自動選択
+    if (!currentSelectedShift || !availableShifts.find(s => s.id === currentSelectedShift.id)) {
+        selectShiftForSubmission(availableShifts[0].id);
     } else {
-        container.innerHTML = '<p>日付が設定されていません。</p>';
+        render2ColumnLayout();
     }
-
-    document.getElementById('submission-modal').classList.add('active');
 }
 
-function closeSubmissionModal() {
-    document.getElementById('submission-modal').classList.remove('active');
-    currentSubmittingShift = null;
-}
+function selectShiftForSubmission(shiftId) {
+    currentSelectedShift = allShifts.find(s => s.id === shiftId);
+    currentSelectedDateIndex = null;
+    slotResponses = {};
 
-function selectAvail(index, type) {
-    const btnGroup = document.getElementById(`btn-group-${index}`);
-    const timeInputs = document.getElementById(`time-inputs-${index}`);
-
-    btnGroup.querySelectorAll('.avail-btn').forEach(btn => {
-        btn.classList.remove('selected-circle', 'selected-triangle', 'selected-cross');
+    // タブのactive更新
+    document.querySelectorAll('.shift-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.textContent === (currentSelectedShift.title || '名称未設定'));
     });
 
-    if (type === 'circle') btnGroup.querySelector('.circle').classList.add('selected-circle');
-    if (type === 'triangle') btnGroup.querySelector('.triangle').classList.add('selected-triangle');
-    if (type === 'cross') btnGroup.querySelector('.cross').classList.add('selected-cross');
-
-    if (type === 'triangle') {
-        timeInputs.classList.add('active');
-    } else {
-        timeInputs.classList.remove('active');
+    // カレンダーの月をシフトの最初の日付に合わせる
+    if (currentSelectedShift.dates && currentSelectedShift.dates.length > 0) {
+        const firstDate = new Date(currentSelectedShift.dates[0].date);
+        shiftCalendarDate = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
     }
+
+    render2ColumnLayout();
+}
+
+function render2ColumnLayout() {
+    if (!currentSelectedShift) return;
+
+    const submitArea = document.getElementById('shift-submit-area');
+    const deadlineInfo = getDeadlineInfo(currentSelectedShift.deadline);
+
+    submitArea.innerHTML = `
+        <div style="margin-bottom: 10px; font-size: 12px; color: var(--text-secondary);">
+            ${currentSelectedShift.description ? `📝 ${currentSelectedShift.description}` : ''}
+            ${currentSelectedShift.deadline ? ` | ⏰ ${deadlineInfo.text}` : ''}
+        </div>
+        <div class="shift-submit-layout">
+            <div class="shift-left-panel" id="shift-left-panel">
+                ${currentSelectedDateIndex !== null ? renderDateSlots() : renderDateList()}
+            </div>
+            <div class="shift-right-panel">
+                <div class="panel-title">📅 カレンダー</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <button onclick="shiftCalPrev()" style="background:none;border:none;font-size:16px;color:var(--accent-primary);cursor:pointer;font-weight:bold;">◀ 前月</button>
+                    <div style="font-size: 14px; font-weight: 800;">${shiftCalendarDate.getFullYear()}年 ${shiftCalendarDate.getMonth() + 1}月</div>
+                    <button onclick="shiftCalNext()" style="background:none;border:none;font-size:16px;color:var(--accent-primary);cursor:pointer;font-weight:bold;">次月 ▶</button>
+                </div>
+                <div class="shift-calendar" id="shift-calendar-grid"></div>
+            </div>
+        </div>
+        <div style="margin-top: 14px;">
+            <label style="display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px;">備考・コメント</label>
+            <textarea id="submission-comment" rows="2" placeholder="店長への伝言があれば..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitShiftData()" style="margin-top: 12px; font-size: 14px; padding: 12px;">
+            この内容で提出する 🚀
+        </button>
+    `;
+
+    renderShiftCalendar();
+}
+
+// ── 左パネル: 候補日一覧 ──
+function renderDateList() {
+    if (!currentSelectedShift.dates || currentSelectedShift.dates.length === 0) {
+        return '<div class="empty-state">日付が設定されていません</div>';
+    }
+
+    let html = '<div class="panel-title">📋 候補日一覧</div>';
+    currentSelectedShift.dates.forEach((dateInfo, i) => {
+        const d = new Date(dateInfo.date);
+        const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+        const hasAnswer = hasDateAnswer(i);
+
+        html += `
+            <div class="date-list-item ${hasAnswer ? 'answered' : ''}" onclick="selectDate(${i})">
+                <div>
+                    <div class="date-text">${dateStr}</div>
+                    <div class="date-time">${dateInfo.startTime} 〜 ${dateInfo.endTime}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    ${hasAnswer ? '<span class="date-status" style="background: #d1fae5; color: #059669;">回答済</span>' : '<span class="date-status" style="background: #fef3c7; color: #d97706;">未回答</span>'}
+                    <span style="color: var(--text-secondary);">▸</span>
+                </div>
+            </div>
+        `;
+    });
+    return html;
+}
+
+function hasDateAnswer(dateIndex) {
+    const slots = generateSlots(currentSelectedShift.dates[dateIndex]);
+    return slots.some((_, slotIdx) => slotResponses[`${dateIndex}-${slotIdx}`]);
+}
+
+// ── 左パネル: コマ割り詳細 ──
+function renderDateSlots() {
+    const dateInfo = currentSelectedShift.dates[currentSelectedDateIndex];
+    const d = new Date(dateInfo.date);
+    const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+    const slots = generateSlots(dateInfo);
+
+    let html = `
+        <button class="back-btn" onclick="backToDateList()">← 一覧に戻る</button>
+        <div class="panel-title">🕐 ${dateStr} のコマ</div>
+    `;
+
+    slots.forEach((slot, slotIdx) => {
+        const key = `${currentSelectedDateIndex}-${slotIdx}`;
+        const currentStatus = slotResponses[key] || '';
+
+        html += `
+            <div class="slot-card">
+                <div class="slot-time">${slot.start} 〜 ${slot.end}</div>
+                <div class="availability-buttons">
+                    <button class="avail-btn ${currentStatus === 'available' ? 'selected-circle' : ''}" 
+                            onclick="setSlotResponse(${currentSelectedDateIndex}, ${slotIdx}, 'available')">◯ 行ける</button>
+                    <button class="avail-btn ${currentStatus === 'partial' ? 'selected-triangle' : ''}" 
+                            onclick="setSlotResponse(${currentSelectedDateIndex}, ${slotIdx}, 'partial')">△ 条件付き</button>
+                    <button class="avail-btn ${currentStatus === 'unavailable' ? 'selected-cross' : ''}" 
+                            onclick="setSlotResponse(${currentSelectedDateIndex}, ${slotIdx}, 'unavailable')">✕ むり</button>
+                </div>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+// ── コマ生成ロジック ──
+function generateSlots(dateInfo) {
+    const interval = parseInt(currentSelectedShift.slotInterval) || 60;
+    const startMinutes = timeToMinutes(dateInfo.startTime);
+    const endMinutes = timeToMinutes(dateInfo.endTime);
+    const slots = [];
+
+    for (let m = startMinutes; m < endMinutes; m += interval) {
+        const slotEnd = Math.min(m + interval, endMinutes);
+        slots.push({
+            start: minutesToTime(m),
+            end: minutesToTime(slotEnd)
+        });
+    }
+
+    return slots;
+}
+
+function timeToMinutes(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+}
+
+function minutesToTime(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// ── カレンダー描画 ──
+function renderShiftCalendar() {
+    const grid = document.getElementById('shift-calendar-grid');
+    if (!grid) return;
+
+    const year = shiftCalendarDate.getFullYear();
+    const month = shiftCalendarDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+
+    // シフトの日付セット
+    const shiftDateSet = new Set();
+    if (currentSelectedShift && currentSelectedShift.dates) {
+        currentSelectedShift.dates.forEach(d => {
+            const dt = new Date(d.date);
+            if (dt.getFullYear() === year && dt.getMonth() === month) {
+                shiftDateSet.add(dt.getDate());
+            }
+        });
+    }
+
+    let html = ['日', '月', '火', '水', '木', '金', '土'].map(d => `<div class="cal-header">${d}</div>`).join('');
+
+    // 空セル
+    for (let i = 0; i < firstDay; i++) {
+        html += '<div class="cal-day"></div>';
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const hasShift = shiftDateSet.has(day);
+        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+        const isSelected = currentSelectedDateIndex !== null && (() => {
+            const selDate = new Date(currentSelectedShift.dates[currentSelectedDateIndex].date);
+            return selDate.getFullYear() === year && selDate.getMonth() === month && selDate.getDate() === day;
+        })();
+
+        let classes = 'cal-day';
+        if (hasShift) classes += ' has-shift';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+
+        const onclick = hasShift ? `onclick="selectDateFromCalendar(${year}, ${month}, ${day})"` : '';
+
+        html += `<div class="${classes}" ${onclick}>${day}</div>`;
+    }
+
+    grid.innerHTML = html;
+}
+
+function selectDateFromCalendar(year, month, day) {
+    if (!currentSelectedShift || !currentSelectedShift.dates) return;
+    const idx = currentSelectedShift.dates.findIndex(d => {
+        const dt = new Date(d.date);
+        return dt.getFullYear() === year && dt.getMonth() === month && dt.getDate() === day;
+    });
+    if (idx >= 0) selectDate(idx);
+}
+
+function selectDate(index) {
+    currentSelectedDateIndex = index;
+    const leftPanel = document.getElementById('shift-left-panel');
+    if (leftPanel) leftPanel.innerHTML = renderDateSlots();
+    renderShiftCalendar();
+}
+
+function backToDateList() {
+    currentSelectedDateIndex = null;
+    const leftPanel = document.getElementById('shift-left-panel');
+    if (leftPanel) leftPanel.innerHTML = renderDateList();
+    renderShiftCalendar();
+}
+
+function setSlotResponse(dateIdx, slotIdx, status) {
+    const key = `${dateIdx}-${slotIdx}`;
+    slotResponses[key] = status;
+    // 再描画（左パネルのみ）
+    const leftPanel = document.getElementById('shift-left-panel');
+    if (leftPanel) leftPanel.innerHTML = renderDateSlots();
+}
+
+function shiftCalPrev() {
+    shiftCalendarDate.setMonth(shiftCalendarDate.getMonth() - 1);
+    render2ColumnLayout();
+}
+
+function shiftCalNext() {
+    shiftCalendarDate.setMonth(shiftCalendarDate.getMonth() + 1);
+    render2ColumnLayout();
 }
 
 // ==========================================
 // 4. サーバーへ提出する機能
 // ==========================================
 async function submitShiftData() {
-    if (!currentSubmittingShift) return;
-    if (!confirm('この内容で店長に提出しますか？')) return;
+    if (!currentSelectedShift) return;
 
+    // 全日付のスロット回答を集計
     const dailyResponses = [];
-    currentSubmittingShift.dates.forEach((dateInfo, index) => {
-        const btnGroup = document.getElementById(`btn-group-${index}`);
+    let hasAnyAnswer = false;
 
-        let status = 'unavailable';
-        if (btnGroup.querySelector('.selected-circle')) status = 'available';
-        if (btnGroup.querySelector('.selected-triangle')) status = 'partial';
+    currentSelectedShift.dates.forEach((dateInfo, dateIdx) => {
+        const slots = generateSlots(dateInfo);
+        const slotData = slots.map((slot, slotIdx) => {
+            const key = `${dateIdx}-${slotIdx}`;
+            const status = slotResponses[key] || 'unavailable';
+            if (slotResponses[key]) hasAnyAnswer = true;
+            return {
+                start: slot.start,
+                end: slot.end,
+                status: status
+            };
+        });
 
-        const responseData = {
+        dailyResponses.push({
             date: dateInfo.date,
-            status: status
-        };
-
-        if (status === 'partial') {
-            responseData.startTime = document.getElementById(`start-${index}`).value;
-            responseData.endTime = document.getElementById(`end-${index}`).value;
-        }
-
-        dailyResponses.push(responseData);
+            slots: slotData,
+            // 後方互換: 全体ステータス判定
+            status: slotData.every(s => s.status === 'available') ? 'available' :
+                slotData.every(s => s.status === 'unavailable') ? 'unavailable' : 'partial'
+        });
     });
 
+    if (!hasAnyAnswer) {
+        alert('少なくとも1つのコマに回答を入力してください');
+        return;
+    }
+
+    if (!confirm('この内容で店長に提出しますか？')) return;
+
+    const commentEl = document.getElementById('submission-comment');
     const payload = {
-        shiftId: currentSubmittingShift.id,
+        shiftId: currentSelectedShift.id,
         userId: currentUser.id,
         userName: currentUser.name,
-        comment: document.getElementById('submission-comment').value,
+        comment: commentEl ? commentEl.value : '',
         dailyResponses: dailyResponses,
         submittedAt: new Date().toISOString()
     };
@@ -274,7 +473,8 @@ async function submitShiftData() {
 
         if (res.ok) {
             alert('🎉 シフトの提出が完了しました！');
-            closeSubmissionModal();
+            currentSelectedShift = null;
+            slotResponses = {};
             loadAllData();
         } else {
             alert('提出に失敗しました...');
@@ -479,13 +679,8 @@ async function logout() {
     }
 }
 
-// ▼ モーダルの外側（暗い部分）をクリックしたら閉じる魔法
+// ▼ モーダルの外側（暗い部分）をクリックしたら閉じる
 window.addEventListener('click', (e) => {
-    const submissionModal = document.getElementById('submission-modal');
-    if (e.target === submissionModal) {
-        closeSubmissionModal();
-    }
-
     const scheduleModal = document.getElementById('schedule-modal');
     if (e.target === scheduleModal) {
         closeScheduleModal();
