@@ -1015,6 +1015,60 @@
         </div>
     </div>
 
+    <!-- シフト編集モーダル -->
+    <div id="edit-shift-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px; width: 95%;">
+            <div class="modal-header">
+                <h2 class="modal-title">✏️ シフト編集</h2>
+                <button class="modal-close" onclick="closeEditShiftModal()">&times;</button>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label">業務名 <span style="color: var(--danger);">*</span></label>
+                <input type="text" id="edit-shift-title" class="form-control">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label">説明・備考</label>
+                <textarea id="edit-shift-description" class="form-control" rows="2"></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label">提出期限</label>
+                <input type="datetime-local" id="edit-shift-deadline" class="form-control">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label">スロット間隔</label>
+                <select id="edit-slot-interval" class="form-control">
+                    <option value="30">30分おき</option>
+                    <option value="60">1時間おき</option>
+                    <option value="120">2時間おき</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label">日付・時間の編集</label>
+                <div style="padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px dashed #cbd5e1;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 6px; color: var(--text-secondary);">
+                        一括変更</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="time" id="edit-bulk-start" class="form-control"
+                            style="padding: 6px; font-size: 13px;" value="09:00">
+                        <span style="color: var(--text-secondary); font-weight: bold;">〜</span>
+                        <input type="time" id="edit-bulk-end" class="form-control"
+                            style="padding: 6px; font-size: 13px;" value="18:00">
+                        <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; width: auto;"
+                            onclick="applyEditBulkTime()">適用</button>
+                    </div>
+                </div>
+                <div id="edit-dates-list" style="max-height: 250px; overflow-y: auto;"></div>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" onclick="saveEditShift()">変更を保存する 💾</button>
+        </div>
+    </div>
+
     <script src="/admin/admin.js"></script>
 </body>
 

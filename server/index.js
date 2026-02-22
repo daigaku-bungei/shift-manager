@@ -327,6 +327,24 @@ app.post('/api/shifts', (req, res) => {
     res.status(201).json(newShift);
 });
 
+// シフト編集
+app.put('/api/shifts/:id', (req, res) => {
+    const data = readData();
+    const shiftIndex = data.shifts.findIndex(s => s.id === req.params.id);
+    if (shiftIndex === -1) return res.status(404).json({ error: 'シフトが見つかりません' });
+
+    const updatableFields = ['title', 'description', 'dates', 'deadline', 'responseType', 'slotInterval', 'required_skill_level'];
+    updatableFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+            data.shifts[shiftIndex][field] = req.body[field];
+        }
+    });
+    data.shifts[shiftIndex].updatedAt = new Date().toISOString();
+
+    writeData(data);
+    res.json(data.shifts[shiftIndex]);
+});
+
 // 手動シフト割り当て
 app.post('/api/shifts/:id/assign', (req, res) => {
     const data = readData();

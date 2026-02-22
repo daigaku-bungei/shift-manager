@@ -420,16 +420,14 @@ function shiftCalNext() {
 async function submitShiftData() {
     if (!currentSelectedShift) return;
 
-    // 全日付のスロット回答を集計
+    // 全日付のスロット回答を集計（未回答は自動的に「行けない」扱い）
     const dailyResponses = [];
-    let hasAnyAnswer = false;
 
     currentSelectedShift.dates.forEach((dateInfo, dateIdx) => {
         const slots = generateSlots(dateInfo);
         const slotData = slots.map((slot, slotIdx) => {
             const key = `${dateIdx}-${slotIdx}`;
-            const status = slotResponses[key] || 'unavailable';
-            if (slotResponses[key]) hasAnyAnswer = true;
+            const status = slotResponses[key] || 'unavailable'; // 空白=行けない
             return {
                 start: slot.start,
                 end: slot.end,
@@ -440,16 +438,10 @@ async function submitShiftData() {
         dailyResponses.push({
             date: dateInfo.date,
             slots: slotData,
-            // 後方互換: 全体ステータス判定
             status: slotData.every(s => s.status === 'available') ? 'available' :
                 slotData.every(s => s.status === 'unavailable') ? 'unavailable' : 'partial'
         });
     });
-
-    if (!hasAnyAnswer) {
-        alert('少なくとも1つのコマに回答を入力してください');
-        return;
-    }
 
     if (!confirm('この内容で店長に提出しますか？')) return;
 

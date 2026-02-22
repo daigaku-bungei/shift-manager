@@ -160,6 +160,7 @@ async function loadShifts() {
                         <h2 style="font-size: 16px; font-weight: 800; margin: 0;">${shift.title} <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 10px;">必要Lv: <span class="skill-badge skill-lv${shift.required_skill_level || 1}">Lv ${shift.required_skill_level || 1}</span></span></h2>
                         <div style="display: flex; gap: 10px; align-items: center;">
                             ${deadlineHtml.replace('margin-bottom: 12px;', 'margin-bottom: 0;')}
+                            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="openEditShiftModal('${shift.id}')">編集</button>
                             <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteShift('${shift.id}')">削除</button>
                         </div>
                     </div>
@@ -1076,5 +1077,135 @@ async function approveStaff() {
         }
     } catch (error) {
         alert('追加中にエラーが発生しました。');
+    }
+}
+
+// ==========================================
+// シフト編集機能
+// ==========================================
+let editingShiftId = null;
+
+function openEditShiftModal(shiftId) {
+    const shift = shifts.find(s => s.id === shiftId);
+    if (!shift) return;
+
+    editingShiftId = shiftId;
+
+    document.getElementById('edit-shift-title').value = shift.title || '';
+    document.getElementById('edit-shift-description').value = shift.description || '';
+    document.getElementById('edit-slot-interval').value = shift.slotInterval || '60';
+
+    // 期限
+    if (shift.deadline) {
+        const dt = new Date(shift.deadline);
+        const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        document.getElementById('edit-shift-deadline').value = local;
+    } else {
+        document.getElementById('edit-shift-deadline').value = '';
+    }
+
+    // 日付リスト描画
+    renderEditDatesList(shift.dates || []);
+
+    document.getElementById('edit-shift-modal').classList.add('active');
+}
+
+function closeEditShiftModal() {
+    document.getElementById('edit-shift-modal').classList.remove('active');
+    editingShiftId = null;
+}
+
+function renderEditDatesList(dates) {
+    const container = document.getElementById('edit-dates-list');
+    if (!dates || dates.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); font-size: 13px;">日付が設定されていません</p>';
+        return;
+    }
+
+    container.innerHTML = dates.map((d, i) => {
+        const dateObj = new Date(d.date);
+        const dateStr = dateObj.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' });
+        return `
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 6px; font-size: 13px;">
+                <span style="font-weight: 700; min-width: 120px;">📅 ${dateStr}</span>
+                <input type="time" class="form-control edit-date-start" data-index="${i}" value="${d.startTime || '09:00'}" style="padding: 4px 6px; font-size: 12px; width: 100px;">
+                <span style="color: var(--text-secondary);">〜</span>
+                <input type="time" class="form-control edit-date-end" data-index="${i}" value="${d.endTime || '18:00'}" style="padding: 4px 6px; font-size: 12px; width: 100px;">
+                <button onclick="removeEditDate(${i})" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 0 4px;" title="この日を削除">✕</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function applyEditBulkTime() {
+    const startTime = document.getElementById('edit-bulk-start').value;
+    const endTime = document.getElementById('edit-bulk-end').value;
+
+    document.querySelectorAll('.edit-date-start').forEach(input => input.value = startTime);
+    document.querySelectorAll('.edit-date-end').forEach(input => input.value = endTime);
+}
+
+function removeEditDate(index) {
+    const shift = shifts.find(s => s.id === editingShiftId);
+    if (!shift || !shift.dates) return;
+    shift.dates.splice(index, 1);
+    renderEditDatesList(shift.dates);
+}
+
+async function saveEditShift() {
+    if (!editingShiftId) return;
+
+    const title = document.getElementById('edit-shift-title').value.trim();
+    if (!title) {
+        showAlert('業務名を入力してください', 'error');
+        return;
+    }
+
+    const shift = shifts.find(s => s.id === editingShiftId);
+
+    // 日付データを集める
+    const startInputs = document.querySelectorAll('.edit-date-start');
+    const endInputs = document.querySelectorAll('.edit-date-end');
+    const updatedDates = (shift.dates || []).map((d, i) => {
+        if (i < startInputs.length) {
+            return {
+                ...d,
+                startTime: startInputs[i].value,
+                endTime: endInputs[i].value
+            };
+        }
+        return d;
+    });
+
+    const deadlineVal = document.getElementById('edit-shift-deadline').value;
+
+    const payload = {
+        title: title,
+        description: document.getElementById('edit-shift-description').value.trim(),
+        deadline: deadlineVal ? new Date(deadlineVal).toISOString() : null,
+        slotInterval: document.getElementById('edit-slot-interval').value,
+        dates: updatedDates
+    };
+
+    try {
+        const response = await fetch(`/api/shifts/${editingShiftId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            showAlert('シフトを更新しました！', 'success');
+            closeEditShiftModal();
+            loadShifts();
+            loadDashboard();
+        } else {
+            const error = await response.json();
+            showAlert(error.error || 'シフト更新に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('シフト更新エラー:', error);
+        showAlert('シフト更新に失敗しました', 'error');
     }
 }
