@@ -1,221 +1,438 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Urban Shift Studio - ログイン & 新規登録</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Urban Shift Studio - ログイン</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="/css/styles.css">
 
   <style>
-    :root,
-    :root[data-theme="dark"],
-    html[data-theme="dark"],
-    body[data-theme="dark"],
-    body {
-        --bg-dark: #e2e8f0 !important;
-        --bg-secondary: #ffffff !important;
-        --bg-tertiary: #f1f5f9 !important;
-        --accent-primary: #0284c7 !important;
-        --accent-secondary: #38bdf8 !important;
-        --text-primary: #334155 !important;
-        --text-muted: #64748b !important;
-        --border-color: #cbd5e1 !important;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        background-color: var(--bg-dark) !important;
-    }
-    
-    .login-page {
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        min-height: 100vh !important;
-        background-color: var(--bg-dark) !important;
-        padding: 20px;
+    body {
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
 
     .login-card {
-        background-color: var(--bg-secondary) !important;
-        border: 1px solid var(--border-color) !important;
-        box-shadow: 0 10px 30px rgba(2, 132, 199, 0.1) !important;
-        border-radius: 16px !important;
-        width: 100% !important;
-        max-width: 420px !important;
-        padding: 40px 30px !important;
-        box-sizing: border-box;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(2, 132, 199, 0.12);
+      width: 100%;
+      max-width: 420px;
+      padding: 40px 32px;
     }
 
     .login-title {
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 700;
-        margin-top: 0;
-        margin-bottom: 10px !important;
-        text-align: center;
-        font-size: 28px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 800;
+      font-size: 26px;
+      text-align: center;
+      margin-bottom: 6px;
     }
 
-    /* 🌟 追加：タブ切り替えのスタイル */
+    .login-subtitle {
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+      margin-bottom: 28px;
+    }
+
+    /* ═══ タブ ═══ */
     .auth-tabs {
-        display: flex;
-        justify-content: center;
-        gap: 30px;
-        border-bottom: 2px solid var(--border-color);
-        margin-bottom: 25px;
+      display: flex;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 24px;
     }
 
     .auth-tab {
-        font-weight: 700;
-        font-size: 16px;
-        padding-bottom: 10px;
-        cursor: pointer;
-        color: var(--text-muted);
-        transition: 0.3s;
-        margin-bottom: -2px;
-        border-bottom: 3px solid transparent;
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      color: #94a3b8;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: 0.2s;
+      user-select: none;
     }
 
     .auth-tab.active {
-        color: var(--accent-primary);
-        border-bottom: 3px solid var(--accent-primary);
+      color: #0284c7;
+      border-bottom-color: #0284c7;
     }
 
-    .login-role-toggle {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 25px;
-        background: var(--bg-tertiary);
-        padding: 5px;
-        border-radius: 10px;
+    /* ═══ ロール切り替え ═══ */
+    .role-toggle {
+      display: flex;
+      gap: 8px;
+      background: #f1f5f9;
+      padding: 5px;
+      border-radius: 10px;
+      margin-bottom: 22px;
     }
 
-    .login-role-toggle .btn {
-        flex: 1;
-        padding: 10px;
-        border-radius: 8px;
-        border: none;
-        background: transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s;
-        font-size: 15px;
+    .role-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.2s;
     }
 
-    .login-role-toggle .btn.active {
-        background-color: var(--bg-secondary) !important;
-        color: var(--accent-primary) !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    .role-btn.active {
+      background: white;
+      color: #0284c7;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
+    /* ═══ フォーム ═══ */
     .form-group {
-        margin-bottom: 20px;
-        text-align: left;
+      margin-bottom: 18px;
     }
 
     .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        color: var(--text-primary) !important;
-        font-weight: 600;
-        font-size: 14px;
+      display: block;
+      margin-bottom: 7px;
+      color: #334155;
+      font-weight: 600;
+      font-size: 13px;
     }
 
     .form-control {
-        width: 100%;
-        padding: 14px 16px;
-        background-color: var(--bg-tertiary) !important;
-        border: 1px solid var(--border-color) !important;
-        color: var(--text-primary) !important;
-        border-radius: 8px;
-        font-size: 15px;
-        transition: all 0.3s !important;
-        box-sizing: border-box;
+      width: 100%;
+      padding: 13px 15px;
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      color: #1e293b;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: 0.2s;
+      font-family: inherit;
     }
 
     .form-control:focus {
-        background-color: #ffffff !important;
-        border-color: var(--accent-primary) !important;
-        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1) !important;
-        outline: none;
+      background: white;
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+      outline: none;
     }
 
+    /* パスワード入力ラッパー */
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-wrapper .form-control {
+      padding-right: 44px;
+    }
+
+    .toggle-pw {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+      user-select: none;
+      color: #94a3b8;
+      transition: color 0.2s;
+    }
+
+    .toggle-pw:hover {
+      color: #0284c7;
+    }
+
+    /* ═══ ボタン ═══ */
     .btn-primary {
-        width: 100%;
-        padding: 14px;
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
-        border: none !important;
-        color: white !important;
-        font-size: 16px;
-        font-weight: bold;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s !important;
-        margin-top: 10px;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      border: none;
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 6px;
+      font-family: inherit;
     }
 
     .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(2, 132, 199, 0.3) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.3);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.99);
+    }
+
+    /* LINE ボタン */
+    .btn-line {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 13px;
+      background: #06C755;
+      border: none;
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-line:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(6, 199, 85, 0.3);
+    }
+
+    .divider {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      margin: 16px 0;
+      position: relative;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 42%;
+      height: 1px;
+      background: #e2e8f0;
+    }
+
+    .divider::before {
+      left: 0;
+    }
+
+    .divider::after {
+      right: 0;
+    }
+
+    .hint-box {
+      margin-top: 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.7;
     }
   </style>
 </head>
+
 <body>
-  <div class="login-page">
-    <div class="login-card">
-      <h1 class="login-title">Urban Shift Studio</h1>
-      <p style="text-align: center; color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
-        リクエスト回答型シフト集約システム
-      </p>
 
-      <div class="auth-tabs">
-          <div class="auth-tab active" id="tab-login">ログイン</div>
-          <div class="auth-tab" id="tab-register">新規登録</div>
+  <div class="login-card">
+    <h1 class="login-title">Urban Shift Studio</h1>
+    <p class="login-subtitle">リクエスト回答型シフト集約システム</p>
+
+    <!-- タブ -->
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login">ログイン</div>
+      <div class="auth-tab" id="tab-register">新規登録</div>
+    </div>
+
+    <!-- ロール選択 -->
+    <div class="role-toggle">
+      <button type="button" class="role-btn active" data-role="admin">👑 管理者</button>
+      <button type="button" class="role-btn" data-role="staff">🧑 スタッフ</button>
+    </div>
+
+    <!-- フォーム -->
+    <form id="authForm" autocomplete="off">
+
+      <!-- 新規登録のみ：お名前 -->
+      <div class="form-group" id="name-group" style="display:none;">
+        <label for="userName">お名前（店長に表示されます）</label>
+        <input type="text" id="userName" class="form-control" placeholder="例：渋谷 太郎">
       </div>
 
-      <div class="login-role-toggle">
-        <button type="button" class="btn active" data-role="admin">管理者</button>
-        <button type="button" class="btn" data-role="staff">スタッフ</button>
+      <!-- ログインのみ：ユーザーID -->
+      <div class="form-group" id="userId-group">
+        <label for="userId">ユーザーID</label>
+        <input type="text" id="userId" class="form-control" placeholder="IDを入力">
       </div>
 
-      <form id="authForm">
-        <div class="form-group">
-          <label for="userId" style="display: flex; justify-content: space-between; align-items: center;">
-            <span>ユーザーID</span>
-            <span id="auto-gen-btn" style="display: none; color: var(--accent-primary); font-size: 12px; cursor: pointer; padding: 4px 8px; background: rgba(2, 132, 199, 0.1); border-radius: 4px; font-weight: bold; transition: 0.2s;">⚡️ 自動生成</span>
-          </label>
-          <input type="text" id="userId" class="form-control" placeholder="IDを入力" required>
-        </div>
-
-        <div class="form-group">
-          <label for="userId">ユーザーID</label>
-          <input type="text" id="userId" class="form-control" placeholder="IDを入力（例: admin）" required>
-        </div>
-        <div class="form-group">
-          <label for="password">パスワード</label>
+      <!-- パスワード（常時表示） -->
+      <div class="form-group">
+        <label for="password">パスワード</label>
+        <div class="password-wrapper">
           <input type="password" id="password" class="form-control" placeholder="パスワードを入力" required>
+          <span class="toggle-pw" id="toggle-pw" title="パスワードを表示">👁️</span>
         </div>
-        <button type="submit" id="submit-btn" class="btn btn-primary btn-block">ログイン</button>
-      </form>
-
-      <div style="margin-top: 20px; text-align: center;">
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">または</p>
-        <a href="/api/line/login" class="btn" style="display: flex; align-items: center; justify-content: center; gap: 10px; background-color: #06C755; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; transition: 0.3s;">
-          <span>LINEで ログイン / 新規登録</span>
-        </a>
       </div>
 
+      <button type="submit" id="submit-btn" class="btn-primary">ログイン</button>
+    </form>
 
-  <script src="/js/auth.js"></script>
-  <script src="/js/login.js"></script>
+    <div class="divider">または</div>
+
+    <!-- LINEログイン -->
+    <a href="/api/line/login" class="btn-line">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+        <path
+          d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .346-.282.631-.63.631-.345 0-.627-.285-.627-.631V8.108c0-.27.174-.51.432-.596.064-.021.138-.033.199-.033.201 0 .391.09.51.252l2.443 3.317V8.108c0-.345.282-.63.63-.63.344 0 .627.285.627.63v4.771zm-5.741 0c0 .346-.282.631-.631.631-.345 0-.627-.285-.627-.631V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
+      </svg>
+      LINEでログイン / 新規登録
+    </a>
+
+    <div class="hint-box">
+      初期管理者: <strong>admin</strong> / <strong>admin123</strong><br>
+      サンプルスタッフ: <strong>staff1</strong> または <strong>staff2</strong> / <strong>staff123</strong>
+    </div>
+  </div>
+
+  <!-- login.jsのみ読み込む（auth.jsは不要） -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let isRegisterMode = false;
+      let currentRole = 'admin';
+
+      // ── ロール切り替え ──
+      const roleBtns = document.querySelectorAll('.role-btn');
+      roleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          roleBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentRole = btn.dataset.role;
+        });
+      });
+
+      // ── タブ切り替え ──
+      const tabLogin = document.getElementById('tab-login');
+      const tabRegister = document.getElementById('tab-register');
+      const nameGroup = document.getElementById('name-group');
+      const userIdGroup = document.getElementById('userId-group');
+      const userIdInput = document.getElementById('userId');
+      const userNameInput = document.getElementById('userName');
+      const submitBtn = document.getElementById('submit-btn');
+
+      function switchToLogin() {
+        isRegisterMode = false;
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        nameGroup.style.display = 'none';
+        userIdGroup.style.display = 'block';
+        userIdInput.required = true;
+        userNameInput.required = false;
+        submitBtn.textContent = 'ログイン';
+      }
+
+      function switchToRegister() {
+        isRegisterMode = true;
+        tabRegister.classList.add('active');
+        tabLogin.classList.remove('active');
+        nameGroup.style.display = 'block';
+        userIdGroup.style.display = 'none';
+        userIdInput.required = false;
+        userNameInput.required = true;
+        submitBtn.textContent = '新規登録してログイン';
+      }
+
+      tabLogin.addEventListener('click', switchToLogin);
+      tabRegister.addEventListener('click', switchToRegister);
+
+      // ── パスワード表示/非表示 ──
+      const pwInput = document.getElementById('password');
+      const togglePw = document.getElementById('toggle-pw');
+      togglePw.addEventListener('click', () => {
+        const isHidden = pwInput.type === 'password';
+        pwInput.type = isHidden ? 'text' : 'password';
+        togglePw.textContent = isHidden ? '🙈' : '👁️';
+      });
+
+      // ── フォーム送信 ──
+      document.getElementById('authForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        submitBtn.textContent = '処理中...';
+
+        const password = pwInput.value.trim();
+        const name = userNameInput.value.trim();
+        const userId = userIdInput.value.trim();
+
+        try {
+          if (isRegisterMode) {
+            // 新規登録
+            if (!name) { alert('お名前を入力してください'); return; }
+            if (!password) { alert('パスワードを入力してください'); return; }
+            const generatedUserId = 'user_' + Math.random().toString(36).substring(2, 8);
+            const res = await fetch('/api/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: generatedUserId, password, name, role: currentRole })
+            });
+            const data = await res.json();
+            if (res.ok || data.success) {
+              alert(`🎉 アカウント作成成功！\n\nあなたのIDは「 ${generatedUserId} 」です。\n次回ログイン時に必要なのでメモしてください。`);
+              window.location.href = currentRole === 'admin' ? '/admin/index.html' : '/staff/index.html';
+            } else {
+              alert(data.error || data.message || '登録に失敗しました');
+            }
+          } else {
+            // ログイン
+            if (!userId) { alert('ユーザーIDを入力してください'); return; }
+            if (!password) { alert('パスワードを入力してください'); return; }
+            const res = await fetch('/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, password, role: currentRole })
+            });
+            const data = await res.json();
+            if (res.ok || data.success) {
+              window.location.href = currentRole === 'admin' ? '/admin/index.html' : '/staff/index.html';
+            } else {
+              alert(data.message || 'IDまたはパスワードが違います');
+            }
+          }
+        } catch (err) {
+          alert('通信エラーが発生しました');
+        } finally {
+          submitBtn.disabled = false;
+          switchToLogin();
+          submitBtn.textContent = isRegisterMode ? '新規登録してログイン' : 'ログイン';
+        }
+      });
+    });
+  </script>
+
 </body>
+
 </html>
