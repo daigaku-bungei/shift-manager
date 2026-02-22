@@ -13,9 +13,12 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 app.use(express.json());
 app.use(cookieParser());
 app.set('trust proxy', 1); // Render等のリバースプロキシ環境でHTTPSプロトコルを正しく判別するために追加
-// ルートURL (/) は常にログインページへリダイレクト（static より先に登録）
+// ルートURL (/) は常にlogin.htmlを直接返す（CDNキャッシュの古いindex.htmlをバイパス）
 app.get('/', (req, res) => {
-    res.redirect('/login.html');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(__dirname, '../public/login.html'));
 });
 
 // HTMLファイルはキャッシュしない。その他の静的ファイルは1時間キャッシュ
