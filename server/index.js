@@ -24,6 +24,11 @@ app.use(express.static(path.join(__dirname, '../public'), {
     }
 }));
 
+// ルートURL (/) は常にログインページへリダイレクト
+app.get('/', (req, res) => {
+    res.redirect('/login.html');
+});
+
 const LINE_CLIENT_ID = process.env.LINE_CLIENT_ID;
 const LINE_CLIENT_SECRET = process.env.LINE_CLIENT_SECRET;
 
