@@ -13,6 +13,11 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 app.use(express.json());
 app.use(cookieParser());
 app.set('trust proxy', 1); // Render等のリバースプロキシ環境でHTTPSプロトコルを正しく判別するために追加
+// ルートURL (/) は常にログインページへリダイレクト（static より先に登録）
+app.get('/', (req, res) => {
+    res.redirect('/login.html');
+});
+
 // HTMLファイルはキャッシュしない。その他の静的ファイルは1時間キャッシュ
 app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, filePath) => {
@@ -23,11 +28,6 @@ app.use(express.static(path.join(__dirname, '../public'), {
         }
     }
 }));
-
-// ルートURL (/) は常にログインページへリダイレクト
-app.get('/', (req, res) => {
-    res.redirect('/login.html');
-});
 
 const LINE_CLIENT_ID = process.env.LINE_CLIENT_ID;
 const LINE_CLIENT_SECRET = process.env.LINE_CLIENT_SECRET;
