@@ -938,7 +938,7 @@ window.addEventListener('click', (e) => {
 // ========== シフト一括作成機能 ==========
 async function createComplexShift() {
     const title = document.getElementById('shift-title').value.trim();
-    const description = document.getElementById('shift-description').trim();
+    const description = document.getElementById('shift-description').value.trim();
     const responseType = document.getElementById('response-type') ? document.getElementById('response-type').value : 'slot';
     const slotInterval = document.getElementById('slot-interval') ? document.getElementById('slot-interval').value : '30';
 
