@@ -96,8 +96,8 @@ app.post('/api/register', (req, res) => {
         return res.status(400).json({ success: false, message: 'IDとパスワードは必須です' });
     }
 
-    // 既に同じID（username）が使われていないかチェック
-    const existingUser = data.members.find(m => m.username === username);
+    // 既に同じID（username）＋同じロールが使われていないかチェック
+    const existingUser = data.members.find(m => m.username === username && m.role === role);
     if (existingUser) {
         return res.status(400).json({ success: false, message: 'このIDは既に使われています。別のIDを入力してください。' });
     }
@@ -232,8 +232,15 @@ app.get('/api/me', (req, res) => {
     const userId = req.cookies.user_session;
     const data = readData();
     const user = data.members.find(m => m.id === userId);
-    if (user) res.json(user);
-    else res.status(401).json({ error: '未ログイン' });
+    if (!user) return res.status(401).json({ error: '未ログイン' });
+
+    // roleクエリパラメータが指定されていたら、ロールもチェック
+    const requiredRole = req.query.role;
+    if (requiredRole && user.role !== requiredRole) {
+        return res.status(403).json({ error: 'アクセス権限がありません', userRole: user.role });
+    }
+
+    res.json(user);
 });
 
 // 個人の予定（プライベートスケジュール）API

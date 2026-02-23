@@ -52,7 +52,7 @@ function switchSection(sectionName) {
 // ユーザー情報読み込み
 async function loadUserInfo() {
     try {
-        const response = await fetch('/api/me', { credentials: 'include' });
+        const response = await fetch('/api/me?role=admin', { credentials: 'include' });
         if (response.ok) {
             currentUser = await response.json();
             document.getElementById('admin-name').textContent = currentUser.name || '管理者';

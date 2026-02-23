@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ▼ 自分のデータを取得
 async function loadMyInfo() {
     try {
-        const res = await fetch('/api/me', { credentials: 'include' });
+        const res = await fetch('/api/me?role=staff', { credentials: 'include' });
         if (!res.ok) throw new Error('未ログイン');
         currentUser = await res.json();
 
