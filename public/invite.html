@@ -18,71 +18,30 @@
       box-sizing: border-box;
     }
 
-    :root {
-      --bg-primary: #0a0a12;
-      --bg-secondary: #12121e;
-      --bg-tertiary: #1a1a2e;
-      --accent-primary: #8b5cf6;
-      --accent-secondary: #06b6d4;
-      --text-primary: #eeeef2;
-      --text-secondary: #94a3b8;
-      --border-glass: rgba(139, 92, 246, 0.12);
-    }
-
     body {
       font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      background: #ffffff;
+      color: #0f1419;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 30% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 60%),
-        radial-gradient(ellipse at 70% 30%, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
-      z-index: 0;
     }
 
     .profile-card {
-      position: relative;
-      z-index: 1;
-      background: rgba(26, 26, 46, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border-glass);
-      border-radius: 20px;
+      background: #ffffff;
+      border: 1px solid #eff3f4;
+      border-radius: 16px;
       width: 100%;
       max-width: 400px;
       overflow: hidden;
       text-align: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 60px rgba(139, 92, 246, 0.06);
-      animation: cardIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    @keyframes cardIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.97);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
     }
 
     .banner {
       height: 120px;
-      background: linear-gradient(135deg, #7c3aed, #8b5cf6, #06b6d4);
+      background: linear-gradient(135deg, #1d9bf0, #1a8cd8);
       position: relative;
     }
 
@@ -90,8 +49,8 @@
       width: 80px;
       height: 80px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-      border: 4px solid rgba(26, 26, 46, 0.9);
+      background: #ffffff;
+      border: 4px solid #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -100,7 +59,7 @@
       bottom: -40px;
       left: 50%;
       transform: translateX(-50%);
-      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     .card-body {
@@ -109,13 +68,12 @@
 
     .shop-name {
       font-size: 24px;
-      font-weight: 900;
+      font-weight: 800;
       margin-bottom: 8px;
-      letter-spacing: -0.5px;
     }
 
     .shop-desc {
-      color: var(--text-secondary);
+      color: #536471;
       font-size: 14px;
       margin-bottom: 24px;
       font-weight: 500;
@@ -127,8 +85,8 @@
       gap: 30px;
       margin-bottom: 28px;
       padding: 16px 0;
-      border-top: 1px solid var(--border-glass);
-      border-bottom: 1px solid var(--border-glass);
+      border-top: 1px solid #eff3f4;
+      border-bottom: 1px solid #eff3f4;
     }
 
     .stat {
@@ -138,15 +96,12 @@
     .stat-num {
       font-size: 24px;
       font-weight: 900;
-      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #0f1419;
     }
 
     .stat-label {
       font-size: 11px;
-      color: var(--text-secondary);
+      color: #536471;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -157,18 +112,16 @@
       background: #06C755;
       color: white;
       text-decoration: none;
-      padding: 16px;
-      border-radius: 12px;
-      font-weight: 800;
+      padding: 14px;
+      border-radius: 9999px;
+      font-weight: 700;
       font-size: 16px;
       margin: 0 30px 30px;
-      transition: all 0.3s;
-      box-shadow: 0 4px 15px rgba(6, 199, 85, 0.25);
+      transition: all 0.2s;
     }
 
     .btn-join:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(6, 199, 85, 0.35);
+      background: #05b34c;
       color: white;
     }
 
@@ -177,8 +130,7 @@
     }
 
     ::selection {
-      background: rgba(139, 92, 246, 0.3);
-      color: white;
+      background: rgba(29, 155, 240, 0.15);
     }
   </style>
 </head>
@@ -215,10 +167,6 @@
   </div>
 
   <script>
-    // URLパラメータからショップ情報を取得
-    const urlParams = new URLSearchParams(window.location.search);
-
-    // ショップ名はURLに含めるか、APIから取得
     fetch('/api/stats').then(r => r.json()).then(data => {
       document.getElementById('staff-count').textContent = data.staffCount || 0;
       document.getElementById('shift-count').textContent = data.activeShifts || 0;

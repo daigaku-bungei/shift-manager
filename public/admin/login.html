@@ -6,219 +6,142 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ログイン - Urban Shift Studio</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap');
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap');
-
         body {
             font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #0a0a12;
-            color: #eeeef2;
+            background: #ffffff;
+            color: #0f1419;
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             padding: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(ellipse at 30% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 60%),
-                radial-gradient(ellipse at 70% 30%, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
-            animation: bgPulse 10s ease-in-out infinite;
-            background-size: 200% 200%;
-            z-index: 0;
-        }
-
-        @keyframes bgPulse {
-
-            0%,
-            100% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
         }
 
         .login-container {
             width: 100%;
-            max-width: 450px;
-            position: relative;
-            z-index: 1;
-            animation: cardIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        @keyframes cardIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px) scale(0.97);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
+            max-width: 400px;
         }
 
         .logo-section {
             text-align: center;
-            margin-bottom: 36px;
+            margin-bottom: 32px;
         }
 
         .logo {
-            font-size: 42px;
+            font-size: 28px;
             font-weight: 900;
-            background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-            letter-spacing: -1px;
+            color: #0f1419;
+            margin-bottom: 4px;
         }
 
         .tagline {
-            color: #64748b;
-            font-size: 15px;
+            color: #536471;
+            font-size: 14px;
             font-weight: 500;
         }
 
         .login-box {
-            background: rgba(26, 26, 46, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(139, 92, 246, 0.15);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 60px rgba(139, 92, 246, 0.06);
+            border: 1px solid #eff3f4;
+            border-radius: 16px;
+            padding: 32px;
         }
 
         .login-title {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 800;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
             text-align: center;
-            color: #eeeef2;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 8px;
-            color: #94a3b8;
+            margin-bottom: 6px;
+            color: #536471;
             font-weight: 600;
             font-size: 13px;
-            letter-spacing: 0.3px;
         }
 
         .form-control {
             width: 100%;
-            padding: 14px 16px;
-            background: rgba(10, 10, 18, 0.5);
-            border: 1.5px solid rgba(139, 92, 246, 0.12);
-            border-radius: 10px;
-            color: #eeeef2;
-            font-size: 14px;
-            transition: all 0.3s;
+            padding: 10px 12px;
+            border: 1px solid #cfd9de;
+            border-radius: 8px;
+            color: #0f1419;
+            font-size: 15px;
+            transition: all 0.2s;
             font-family: inherit;
+            background: #ffffff;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: #8b5cf6;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15), 0 0 20px rgba(139, 92, 246, 0.1);
-            background: rgba(26, 26, 46, 0.8);
+            border-color: #1d9bf0;
+            box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
         }
 
         .form-control::placeholder {
-            color: #4a5568;
+            color: #8899a6;
         }
 
         .btn-login {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            padding: 12px;
+            background: #1d9bf0;
             border: none;
-            border-radius: 10px;
+            border-radius: 9999px;
             color: white;
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 10px;
+            transition: all 0.2s;
+            margin-top: 8px;
             font-family: inherit;
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-login::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.1) 50%, transparent 60%);
-            background-size: 200% 100%;
-            animation: shimmer 3s ease infinite;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% center;
-            }
-
-            100% {
-                background-position: -200% center;
-            }
         }
 
         .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.45);
+            background: #1a8cd8;
         }
 
         .btn-login:active {
-            transform: translateY(0);
+            transform: scale(0.98);
         }
 
         .alert {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
         }
 
         .alert-error {
-            background: rgba(244, 63, 94, 0.1);
-            border-color: #f43f5e;
-            color: #fb7185;
+            background: rgba(244, 33, 46, 0.08);
+            color: #f4212e;
+            border: 1px solid rgba(244, 33, 46, 0.15);
         }
 
         .demo-accounts {
-            margin-top: 28px;
-            padding: 20px;
-            background: rgba(10, 10, 18, 0.4);
-            border: 1px solid rgba(139, 92, 246, 0.08);
+            margin-top: 24px;
+            padding: 16px;
+            background: #f7f9fa;
             border-radius: 12px;
         }
 
         .demo-title {
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 14px;
-            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #536471;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -227,8 +150,8 @@
         .demo-item {
             display: flex;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+            padding: 8px 0;
+            border-bottom: 1px solid #eff3f4;
             font-size: 13px;
         }
 
@@ -237,23 +160,13 @@
         }
 
         .demo-label {
-            color: #64748b;
+            color: #536471;
         }
 
         .demo-value {
             font-family: 'Courier New', monospace;
-            color: #a78bfa;
+            color: #1d9bf0;
             font-weight: 600;
-        }
-
-        @media (max-width: 480px) {
-            .logo {
-                font-size: 32px;
-            }
-
-            .login-box {
-                padding: 28px 20px;
-            }
         }
 
         .loading {
@@ -266,13 +179,13 @@
         }
 
         .spinner {
-            border: 3px solid rgba(139, 92, 246, 0.1);
-            border-top: 3px solid #8b5cf6;
+            border: 3px solid #eff3f4;
+            border-top: 3px solid #1d9bf0;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 12px;
         }
 
         @keyframes spin {
@@ -286,8 +199,7 @@
         }
 
         ::selection {
-            background: rgba(139, 92, 246, 0.3);
-            color: white;
+            background: rgba(29, 155, 240, 0.15);
         }
     </style>
 </head>
@@ -301,28 +213,22 @@
 
         <div class="login-box">
             <h2 class="login-title">ログイン</h2>
-
             <div id="alert-container"></div>
-
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <p style="color: #94a3b8;">ログイン中...</p>
+                <p style="color: #536471;">ログイン中...</p>
             </div>
-
             <form id="login-form">
                 <div class="form-group">
                     <label class="form-label">ユーザー名</label>
                     <input type="text" class="form-control" name="username" required autofocus placeholder="ユーザー名を入力">
                 </div>
-
                 <div class="form-group">
                     <label class="form-label">パスワード</label>
                     <input type="password" class="form-control" name="password" required placeholder="パスワードを入力">
                 </div>
-
                 <button type="submit" class="btn-login">ログイン</button>
             </form>
-
             <div class="demo-accounts">
                 <div class="demo-title">デモアカウント</div>
                 <div class="demo-item">
@@ -338,85 +244,50 @@
     </div>
 
     <script>
-        // ログインフォーム処理
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const formData = new FormData(e.target);
             const credentials = Object.fromEntries(formData);
-
-            // ローディング表示
             document.getElementById('loading').classList.add('active');
             e.target.style.display = 'none';
-
             try {
                 const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify(credentials)
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', body: JSON.stringify(credentials)
                 });
-
                 const data = await response.json();
-
                 if (response.ok) {
-                    // ログイン成功
-                    if (data.user.role === 'admin') {
-                        window.location.href = '/admin';
-                    } else {
-                        window.location.href = '/staff';
-                    }
+                    window.location.href = data.user.role === 'admin' ? '/admin' : '/staff';
                 } else {
-                    // ログイン失敗
                     showAlert(data.error || 'ログインに失敗しました');
                     document.getElementById('loading').classList.remove('active');
                     e.target.style.display = 'block';
                 }
             } catch (error) {
-                console.error('ログインエラー:', error);
                 showAlert('ログインに失敗しました。もう一度お試しください。');
                 document.getElementById('loading').classList.remove('active');
                 e.target.style.display = 'block';
             }
         });
 
-        // アラート表示
         function showAlert(message) {
             const container = document.getElementById('alert-container');
             const alert = document.createElement('div');
             alert.className = 'alert alert-error';
             alert.textContent = message;
-
             container.innerHTML = '';
             container.appendChild(alert);
-
-            setTimeout(() => {
-                alert.style.opacity = '0';
-                setTimeout(() => alert.remove(), 300);
-            }, 5000);
+            setTimeout(() => { alert.style.opacity = '0'; setTimeout(() => alert.remove(), 300); }, 5000);
         }
 
-        // セッションチェック
         window.addEventListener('load', async () => {
             try {
-                const response = await fetch('/api/meme', {
-                    credentials: 'include'
-                });
-
+                const response = await fetch('/api/meme', { credentials: 'include' });
                 if (response.ok) {
                     const user = await response.json();
-                    // 既にログイン済み
-                    if (user.role === 'admin') {
-                        window.location.href = '/admin';
-                    } else {
-                        window.location.href = '/staff';
-                    }
+                    window.location.href = user.role === 'admin' ? '/admin' : '/staff';
                 }
-            } catch (error) {
-                // セッションなし（正常）
-            }
+            } catch (error) { }
         });
     </script>
 </body>
