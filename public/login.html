@@ -10,7 +10,9 @@
   <title>Urban Shift Studio - ログイン</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
   <style>
     * {
@@ -20,130 +22,195 @@
     }
 
     body {
-      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+      font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
+      background: #0a0a12;
+      position: relative;
+      overflow: hidden;
     }
 
+    /* ═══ Animated Background ═══ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+      animation: bgPulse 12s ease-in-out infinite;
+      background-size: 200% 200%;
+      z-index: 0;
+    }
+
+    @keyframes bgPulse {
+
+      0%,
+      100% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+    }
+
+    /* ═══ Login Card ═══ */
     .login-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 10px 40px rgba(2, 132, 199, 0.12);
+      position: relative;
+      z-index: 1;
+      background: rgba(26, 26, 46, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(139, 92, 246, 0.15);
+      border-radius: 24px;
       width: 100%;
       max-width: 420px;
-      padding: 40px 32px;
+      padding: 44px 36px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 60px rgba(139, 92, 246, 0.08);
+      animation: cardIn 0.6s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* ═══ Title ═══ */
     .login-title {
-      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      font-size: 28px;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      font-weight: 800;
-      font-size: 26px;
-      text-align: center;
-      margin-bottom: 6px;
+      letter-spacing: -0.5px;
     }
 
     .login-subtitle {
       text-align: center;
       color: #64748b;
       font-size: 13px;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
+      font-weight: 500;
     }
 
-    /* ═══ タブ ═══ */
+    /* ═══ Tabs ═══ */
     .auth-tabs {
       display: flex;
-      border-bottom: 2px solid #e2e8f0;
-      margin-bottom: 24px;
+      border-bottom: 2px solid rgba(139, 92, 246, 0.1);
+      margin-bottom: 28px;
     }
 
     .auth-tab {
       flex: 1;
       text-align: center;
-      padding: 10px 0;
+      padding: 11px 0;
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
       cursor: pointer;
-      color: #94a3b8;
+      color: #64748b;
       border-bottom: 3px solid transparent;
       margin-bottom: -2px;
-      transition: 0.2s;
+      transition: all 0.3s;
       user-select: none;
     }
 
-    .auth-tab.active {
-      color: #0284c7;
-      border-bottom-color: #0284c7;
+    .auth-tab:hover {
+      color: #94a3b8;
     }
 
-    /* ═══ ロール切り替え ═══ */
+    .auth-tab.active {
+      color: #a78bfa;
+      border-bottom-color: #8b5cf6;
+    }
+
+    /* ═══ Role Toggle ═══ */
     .role-toggle {
       display: flex;
-      gap: 8px;
-      background: #f1f5f9;
+      gap: 6px;
+      background: rgba(10, 10, 18, 0.5);
       padding: 5px;
-      border-radius: 10px;
-      margin-bottom: 22px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(139, 92, 246, 0.08);
     }
 
     .role-btn {
       flex: 1;
       padding: 10px;
       border: none;
-      border-radius: 7px;
+      border-radius: 9px;
       background: transparent;
       color: #64748b;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 14px;
       cursor: pointer;
-      transition: 0.2s;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+
+    .role-btn:hover {
+      color: #94a3b8;
     }
 
     .role-btn.active {
-      background: white;
-      color: #0284c7;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.1));
+      color: #a78bfa;
+      box-shadow: 0 2px 10px rgba(139, 92, 246, 0.15);
     }
 
-    /* ═══ フォーム ═══ */
+    /* ═══ Form ═══ */
     .form-group {
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     .form-group label {
       display: block;
-      margin-bottom: 7px;
-      color: #334155;
+      margin-bottom: 8px;
+      color: #94a3b8;
       font-weight: 600;
       font-size: 13px;
+      letter-spacing: 0.3px;
     }
 
     .form-control {
       width: 100%;
       padding: 13px 15px;
-      background: #f8fafc;
-      border: 1.5px solid #e2e8f0;
-      color: #1e293b;
-      border-radius: 8px;
+      background: rgba(10, 10, 18, 0.5);
+      border: 1.5px solid rgba(139, 92, 246, 0.12);
+      color: #eeeef2;
+      border-radius: 10px;
       font-size: 15px;
-      transition: 0.2s;
+      transition: all 0.3s;
       font-family: inherit;
     }
 
     .form-control:focus {
-      background: white;
-      border-color: #0284c7;
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+      background: rgba(26, 26, 46, 0.8);
+      border-color: #8b5cf6;
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15), 0 0 20px rgba(139, 92, 246, 0.1);
       outline: none;
     }
 
-    /* パスワード入力ラッパー */
+    .form-control::placeholder {
+      color: #4a5568;
+    }
+
+    /* ═══ Password ═══ */
     .password-wrapper {
       position: relative;
     }
@@ -160,40 +227,62 @@
       cursor: pointer;
       font-size: 18px;
       user-select: none;
-      color: #94a3b8;
+      color: #64748b;
       transition: color 0.2s;
     }
 
     .toggle-pw:hover {
-      color: #0284c7;
+      color: #a78bfa;
     }
 
-    /* ═══ ボタン ═══ */
+    /* ═══ Buttons ═══ */
     .btn-primary {
       width: 100%;
       padding: 14px;
-      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      background: linear-gradient(135deg, #7c3aed, #8b5cf6);
       border: none;
       color: white;
       font-size: 15px;
       font-weight: 700;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: 0.2s;
-      margin-top: 6px;
+      transition: all 0.3s;
+      margin-top: 8px;
       font-family: inherit;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.1) 50%, transparent 60%);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 200% center;
+      }
+
+      100% {
+        background-position: -200% center;
+      }
     }
 
     .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.45);
     }
 
     .btn-primary:active {
-      transform: scale(0.99);
+      transform: scale(0.98);
     }
 
-    /* LINE ボタン */
+    /* ═══ LINE Button ═══ */
     .btn-line {
       display: flex;
       align-items: center;
@@ -206,24 +295,28 @@
       color: white;
       font-size: 15px;
       font-weight: 700;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       text-decoration: none;
-      transition: 0.2s;
+      transition: all 0.3s;
       font-family: inherit;
+      box-shadow: 0 4px 15px rgba(6, 199, 85, 0.25);
     }
 
     .btn-line:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(6, 199, 85, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(6, 199, 85, 0.35);
+      color: white;
     }
 
+    /* ═══ Divider ═══ */
     .divider {
       text-align: center;
-      color: #94a3b8;
+      color: #4a5568;
       font-size: 12px;
-      margin: 16px 0;
+      margin: 18px 0;
       position: relative;
+      font-weight: 500;
     }
 
     .divider::before,
@@ -231,9 +324,9 @@
       content: '';
       position: absolute;
       top: 50%;
-      width: 42%;
+      width: 40%;
       height: 1px;
-      background: #e2e8f0;
+      background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.15), transparent);
     }
 
     .divider::before {
@@ -244,15 +337,28 @@
       right: 0;
     }
 
+    /* ═══ Hint Box ═══ */
     .hint-box {
-      margin-top: 20px;
-      background: #f8fafc;
-      border-radius: 8px;
-      padding: 12px 14px;
+      margin-top: 24px;
+      background: rgba(10, 10, 18, 0.4);
+      border: 1px solid rgba(139, 92, 246, 0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
       font-size: 12px;
       color: #64748b;
       text-align: center;
-      line-height: 1.7;
+      line-height: 1.8;
+    }
+
+    .hint-box strong {
+      color: #a78bfa;
+      font-weight: 700;
+    }
+
+    /* ═══ Selection ═══ */
+    ::selection {
+      background: rgba(139, 92, 246, 0.3);
+      color: white;
     }
   </style>
 </head>

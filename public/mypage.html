@@ -1,103 +1,167 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>マイページ - Urban Shift Studio</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     :root {
-        --bg-dark: #e2e8f0;
-        --bg-secondary: #ffffff;
-        --accent-primary: #0284c7;
-        --text-primary: #334155;
-        --text-muted: #64748b;
-        --border-color: #cbd5e1;
+      --bg-primary: #0a0a12;
+      --bg-secondary: #12121e;
+      --bg-tertiary: #1a1a2e;
+      --accent-primary: #8b5cf6;
+      --accent-secondary: #06b6d4;
+      --text-primary: #eeeef2;
+      --text-secondary: #94a3b8;
+      --border-glass: rgba(139, 92, 246, 0.12);
     }
+
     body {
-        font-family: 'Noto Sans JP', sans-serif;
-        background-color: var(--bg-dark);
-        color: var(--text-primary);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        margin: 0;
-        padding: 20px;
+      font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
     }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(139, 92, 246, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 30%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+      animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(15px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #a78bfa;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+
+    .back-btn:hover {
+      opacity: 0.7;
+    }
+
     .profile-card {
-        background: var(--bg-secondary);
-        padding: 40px;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(2, 132, 199, 0.1);
-        width: 100%;
-        max-width: 400px;
+      background: rgba(26, 26, 46, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: 20px;
+      padding: 40px 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(139, 92, 246, 0.06);
     }
+
     .profile-title {
-        text-align: center;
-        color: var(--accent-primary);
-        margin-top: 0;
-        margin-bottom: 30px;
-        border-bottom: 2px solid #f1f5f9;
-        padding-bottom: 15px;
+      text-align: center;
+      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border-glass);
     }
-    .info-group {
-        margin-bottom: 20px;
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border-glass);
     }
+
+    .info-item:last-child {
+      border-bottom: none;
+    }
+
     .info-label {
-        font-size: 13px;
-        color: var(--text-muted);
-        font-weight: bold;
-        margin-bottom: 5px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      font-size: 14px;
     }
+
     .info-value {
-        font-size: 18px;
-        font-weight: 500;
-        background: #f8fafc;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 14px;
     }
-    .btn-back {
-        display: block;
-        text-align: center;
-        background: var(--text-muted);
-        color: white;
-        text-decoration: none;
-        padding: 12px;
-        border-radius: 8px;
-        font-weight: bold;
-        margin-top: 30px;
-        transition: 0.3s;
-    }
-    .btn-back:hover {
-        background: var(--text-primary);
+
+    ::selection {
+      background: rgba(139, 92, 246, 0.3);
+      color: white;
     }
   </style>
 </head>
+
 <body>
-
-  <div class="profile-card">
-    <h2 class="profile-title">👤 アカウント情報</h2>
-    
-    <div class="info-group">
-      <div class="info-label">お名前</div>
-      <div class="info-value" id="myName">読み込み中...</div>
+  <div class="container">
+    <a href="javascript:history.back()" class="back-btn">← 戻る</a>
+    <div class="profile-card">
+      <h2 class="profile-title">👤 マイページ</h2>
+      <div class="info-item">
+        <span class="info-label">名前</span>
+        <span class="info-value" id="profile-name">-</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">ユーザーID</span>
+        <span class="info-value" id="profile-username">-</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">ロール</span>
+        <span class="info-value" id="profile-role">-</span>
+      </div>
     </div>
-
-    <div class="info-group">
-      <div class="info-label">ログインID</div>
-      <div class="info-value" id="myUsername">読み込み中...</div>
-    </div>
-
-    <div class="info-group">
-      <div class="info-label">アカウント権限</div>
-      <div class="info-value" id="myRole">読み込み中...</div>
-    </div>
-
-    <a href="javascript:history.back()" class="btn-back">戻る</a>
   </div>
 
   <script src="/js/mypage.js"></script>
 </body>
+
 </html>
