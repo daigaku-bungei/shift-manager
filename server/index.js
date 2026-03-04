@@ -512,6 +512,60 @@ app.delete('/api/pairings/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// ==========================================
+// 環境判定API（フロントエンドのテストボタン表示制御用）
+// ==========================================
+app.get('/api/env-mode', (req, res) => {
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+    res.json({ isProduction });
+});
+
+// ==========================================
+// テスト用クイックログインAPI
+// ==========================================
+app.post('/api/test-login', (req, res) => {
+    // 本番環境ではアクセス不可
+    const isProduction = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+    if (isProduction) {
+        return res.status(404).json({ error: 'Not Found' });
+    }
+
+    const { role } = req.body;
+    const data = readData();
+
+    // テストアカウント定義
+    const testAccounts = {
+        admin: { username: 'admin', password: 'admin123', name: '管理者', role: 'admin' },
+        staff: { username: 'staff1', password: 'staff123', name: 'スタッフ1', role: 'staff' }
+    };
+
+    const account = testAccounts[role];
+    if (!account) {
+        return res.status(400).json({ error: '無効なロールです' });
+    }
+
+    // テストユーザーが存在するか検索
+    let user = data.members.find(m => m.username === account.username && m.role === account.role);
+
+    // 存在しなければ自動作成
+    if (!user) {
+        user = {
+            id: Date.now().toString(),
+            name: account.name,
+            username: account.username,
+            password: account.password,
+            role: account.role
+        };
+        data.members.push(user);
+        writeData(data);
+    }
+
+    // Cookieをセットしてログイン完了
+    res.cookie('user_session', user.id, cookieOpts());
+    const redirectUrl = role === 'admin' ? '/admin/index.html' : '/staff/index.html';
+    res.json({ success: true, role: user.role, redirectUrl });
+});
+
 app.post('/api/melogout', (req, res) => {
     res.clearCookie('user_session');
     res.clearCookie('line_state');

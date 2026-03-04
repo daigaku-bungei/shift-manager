@@ -268,6 +268,64 @@
     ::selection {
       background: rgba(29, 155, 240, 0.15);
     }
+
+    /* テスト用クイックログインセクション */
+    .test-login-section {
+      display: none;
+      margin-top: 20px;
+      border: 2px dashed #e8a248;
+      border-radius: 12px;
+      padding: 16px;
+      background: #fffbf5;
+    }
+
+    .test-login-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #d48806;
+      text-align: center;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .test-login-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-test {
+      flex: 1;
+      padding: 10px 8px;
+      border: 1px solid #e8a248;
+      border-radius: 9999px;
+      background: #ffffff;
+      color: #d48806;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-test:hover {
+      background: #fff3e0;
+      border-color: #d48806;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(212, 136, 6, 0.15);
+    }
+
+    .btn-test:active {
+      transform: scale(0.97);
+    }
+
+    .btn-test:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
   </style>
 </head>
 
@@ -322,6 +380,14 @@
     <div class="hint-box">
       初期管理者: <strong>admin</strong> / <strong>admin123</strong><br>
       サンプルスタッフ: <strong>staff1</strong> または <strong>staff2</strong> / <strong>staff123</strong>
+    </div>
+
+    <div class="test-login-section" id="test-login-section">
+      <div class="test-login-label">⚠️ DEV環境限定 ─ クイックログイン</div>
+      <div class="test-login-buttons">
+        <button type="button" class="btn-test" id="btn-test-admin" onclick="testLogin('admin')">🔐 管理者</button>
+        <button type="button" class="btn-test" id="btn-test-staff" onclick="testLogin('staff')">🧑 スタッフA</button>
+      </div>
     </div>
   </div>
 
@@ -429,7 +495,44 @@
           submitBtn.textContent = isRegisterMode ? '新規登録してログイン' : 'ログイン';
         }
       });
+
+      // --- テスト用クイックログイン ---
+      // 環境チェック：開発環境ならボタンを表示
+      fetch('/api/env-mode')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.isProduction) {
+            document.getElementById('test-login-section').style.display = 'block';
+          }
+        })
+        .catch(() => { /* 本番 or エラー時は非表示のまま */ });
     });
+
+    async function testLogin(role) {
+      const btn = document.getElementById(role === 'admin' ? 'btn-test-admin' : 'btn-test-staff');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'ログイン中...';
+
+      try {
+        const res = await fetch('/api/test-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          window.location.href = data.redirectUrl;
+        } else {
+          alert(data.error || 'テストログインに失敗しました');
+        }
+      } catch (err) {
+        alert('通信エラーが発生しました');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
   </script>
 
 </body>
