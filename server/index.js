@@ -41,13 +41,11 @@ const readData = () => {
     if (!fs.existsSync(DATA_FILE)) {
         const initial = {
             shifts: [],
-            members: [
-                { id: "1", name: "管理者", username: "admin", password: "admin123", role: "admin" },
-                { id: "2", name: "スタッフ1", username: "staff1", password: "staff123", role: "staff" }
-            ],
+            members: [],
             responses: [],
             pairings: [],
-            schedules: []
+            schedules: [],
+            invites: []
         };
         fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
         return initial;
@@ -56,6 +54,17 @@ const readData = () => {
 };
 
 const writeData = (data) => fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+
+// ownerId取得ヘルパー: ログインユーザーが管理者なら自分のID、スタッフなら自分のownerId
+function getOwnerId(req) {
+    const userId = req.cookies.user_session;
+    if (!userId) return null;
+    const data = readData();
+    const user = data.members.find(m => m.id === userId);
+    if (!user) return null;
+    if (user.role === 'admin') return user.id;
+    return user.ownerId || null;
+}
 
 // Cookie設定ヘルパー：本番環境では secure+SameSite=Lax、ローカルでは無制限
 const cookieOpts = () => {
@@ -120,15 +129,119 @@ app.post('/api/register', (req, res) => {
     res.json({ success: true, message: 'アカウント作成成功！', role: newUser.role });
 });
 // ==========================================
-// 2. LINEログイン（★招待リンク＆固有ID機能を追加！）
+// 1.8. 招待トークンシステム
+// ==========================================
+
+// 招待トークン生成（管理者用）
+app.post('/api/invite/create', (req, res) => {
+    const data = readData();
+    const userId = req.cookies.user_session;
+    const admin = data.members.find(m => m.id === userId && m.role === 'admin');
+    if (!admin) return res.status(403).json({ error: '管理者権限が必要です' });
+
+    const token = crypto.randomBytes(12).toString('hex');
+    if (!data.invites) data.invites = [];
+    data.invites.push({
+        token,
+        createdBy: admin.id,
+        ownerId: admin.id,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7日間
+    });
+    writeData(data);
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const inviteUrl = `${protocol}://${host}/join/${token}`;
+    res.json({ success: true, token, url: inviteUrl });
+});
+
+// 招待トークン一覧取得
+app.get('/api/invites', (req, res) => {
+    const data = readData();
+    const invites = (data.invites || []).filter(inv => new Date(inv.expiresAt) > new Date());
+    res.json(invites);
+});
+
+// 参加ページ表示
+app.get('/join/:token', (req, res) => {
+    const data = readData();
+    if (!data.invites) data.invites = [];
+    const invite = data.invites.find(inv => inv.token === req.params.token && new Date(inv.expiresAt) > new Date());
+    if (!invite) {
+        return res.status(404).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px;"><h1>😢 招待リンクが無効です</h1><p>有効期限切れか、無効なリンクです。管理者に新しいリンクを発行してもらってください。</p><a href="/">ログインページへ</a></body></html>');
+    }
+    res.sendFile(path.join(__dirname, '../public/join.html'));
+});
+
+// トークン経由の参加API
+app.post('/api/join', (req, res) => {
+    const { token, method, name, username, password } = req.body;
+    const data = readData();
+    if (!data.invites) data.invites = [];
+
+    const invite = data.invites.find(inv => inv.token === token && new Date(inv.expiresAt) > new Date());
+    if (!invite) {
+        return res.status(400).json({ success: false, message: '招待リンクが無効または期限切れです' });
+    }
+
+    if (method === 'register') {
+        // 新規登録して参加
+        if (!name || !password) {
+            return res.status(400).json({ success: false, message: '名前とパスワードは必須です' });
+        }
+        const generatedUsername = 'user_' + Math.random().toString(36).substring(2, 8);
+        const newUser = {
+            id: Date.now().toString(),
+            name: name,
+            username: generatedUsername,
+            password: password,
+            role: 'staff',
+            ownerId: invite.ownerId,
+            joinedVia: 'invite',
+            joinedAt: new Date().toISOString()
+        };
+        data.members.push(newUser);
+        writeData(data);
+        res.cookie('user_session', newUser.id, cookieOpts());
+        return res.json({ success: true, message: '参加完了！', username: generatedUsername, redirectUrl: '/staff/index.html' });
+    }
+
+    if (method === 'login') {
+        // 既存アカウントでログインして参加
+        if (!username || !password) {
+            return res.status(400).json({ success: false, message: 'IDとパスワードは必須です' });
+        }
+        const user = data.members.find(m => m.username === username && m.password === password);
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'IDまたはパスワードが違います' });
+        }
+        // pending なら staff に昇格
+        if (user.role === 'pending') {
+            user.role = 'staff';
+            writeData(data);
+        }
+        res.cookie('user_session', user.id, cookieOpts());
+        const redirectUrl = user.role === 'admin' ? '/admin/index.html' : '/staff/index.html';
+        return res.json({ success: true, message: '参加完了！', redirectUrl });
+    }
+
+    res.status(400).json({ success: false, message: '不正なリクエストです' });
+});
+
+// ==========================================
+// 2. LINEログイン（★招待トークン連携対応）
 // ==========================================
 app.get('/api/line/login', (req, res) => {
     const state = crypto.randomBytes(20).toString('hex');
     res.cookie('line_state', state, { httpOnly: true });
 
-    // 【魔法の仕掛け】招待リンクから来た場合、その証拠をクッキーにこっそり持たせる
+    // 招待リンク or 招待トークン経由の場合
     if (req.query.invite === 'true') {
-        res.cookie('invite_flag', 'true', { maxAge: 1800000, httpOnly: true }); // 30分有効
+        res.cookie('invite_flag', 'true', { maxAge: 1800000, httpOnly: true });
+    }
+    if (req.query.token) {
+        res.cookie('invite_token', req.query.token, { maxAge: 1800000, httpOnly: true });
     }
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -159,35 +272,48 @@ app.get('/api/line/callback', async (req, res) => {
 
         let user = data.members.find(m => m.lineId === lineUser.userId);
 
-        // クッキーから「招待リンク経由か？」をチェックして証拠を消す
+        // 招待チェック: invite_flag または invite_token
         const isInvite = req.cookies.invite_flag === 'true';
+        const inviteToken = req.cookies.invite_token;
         res.clearCookie('invite_flag');
+        res.clearCookie('invite_token');
+
+        // トークンが有効か確認 + ownerIdを取得
+        let isValidToken = false;
+        let tokenOwnerId = null;
+        if (inviteToken && data.invites) {
+            const foundInvite = data.invites.find(inv => inv.token === inviteToken && new Date(inv.expiresAt) > new Date());
+            if (foundInvite) {
+                isValidToken = true;
+                tokenOwnerId = foundInvite.ownerId;
+            }
+        }
+        const shouldAutoApprove = isInvite || isValidToken;
 
         if (!user) {
-            // 新規ユーザー登録：X(旧Twitter)のような固有のID（例: @a1b2c3）を自動で作る！
             const randomId = Math.random().toString(36).substring(2, 8);
-
             user = {
                 id: Date.now().toString(),
                 name: lineUser.displayName,
-                username: `@${randomId}`, // これが検索用のIDになります
+                username: `@${randomId}`,
                 lineId: lineUser.userId,
                 picture: lineUser.pictureUrl,
-                role: isInvite ? 'staff' : 'pending' // 招待なら即スタッフ、普通なら「承認待ち(pending)」
+                role: shouldAutoApprove ? 'staff' : 'pending',
+                ownerId: tokenOwnerId || null,
+                joinedVia: shouldAutoApprove ? 'invite_line' : 'line',
+                joinedAt: new Date().toISOString()
             };
             data.members.push(user);
             writeData(data);
-        } else if (isInvite && user.role === 'pending') {
-            // 既存の「承認待ち」ユーザーが招待リンクを踏み直したらスタッフに昇格！
+        } else if (shouldAutoApprove && user.role === 'pending') {
             user.role = 'staff';
             writeData(data);
         }
 
         res.cookie('user_session', user.id, cookieOpts());
 
-        // 保留状態なら専用の待機画面へ、スタッフならスタッフ画面へ
         if (user.role === 'pending') {
-            res.send('<h1>登録完了！店長にあなたのID「' + user.username + '」を伝えて承認してもらってください。</h1>');
+            res.send('<html><body style="font-family:sans-serif;text-align:center;padding:60px;"><h1>✅ 登録完了！</h1><p>管理者にあなたのID「<strong>' + user.username + '</strong>」を伝えて承認してもらってください。</p><a href="/">ログインページへ</a></body></html>');
         } else {
             res.redirect('/staff/index.html');
         }
@@ -280,11 +406,24 @@ app.delete('/api/me/schedules/:id', (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/shifts', (req, res) => res.json(readData().shifts));
+app.get('/api/shifts', (req, res) => {
+    const ownerId = getOwnerId(req);
+    const data = readData();
+    const filtered = ownerId
+        ? data.shifts.filter(s => s.ownerId === ownerId)
+        : data.shifts;
+    res.json(filtered);
+});
 
 // これを /api/shifts の下あたりに追加してください！
 app.get('/api/responses', (req, res) => {
-    res.json(readData().responses || []);
+    const ownerId = getOwnerId(req);
+    const data = readData();
+    if (!ownerId) return res.json(data.responses || []);
+    // 自分のシフトに紐づく回答のみ返す
+    const myShiftIds = data.shifts.filter(s => s.ownerId === ownerId).map(s => s.id);
+    const filtered = (data.responses || []).filter(r => myShiftIds.includes(r.shiftId) || myShiftIds.includes(r.shift_id));
+    res.json(filtered);
 });
 
 // シフト回答を提出する
@@ -328,7 +467,8 @@ app.post('/api/responses', (req, res) => {
 
 app.post('/api/shifts', (req, res) => {
     const data = readData();
-    const newShift = { id: Date.now().toString(), ...req.body, createdAt: new Date() };
+    const ownerId = getOwnerId(req);
+    const newShift = { id: Date.now().toString(), ...req.body, ownerId: ownerId, createdAt: new Date() };
     data.shifts.push(newShift);
     writeData(data);
     res.status(201).json(newShift);
@@ -340,7 +480,7 @@ app.put('/api/shifts/:id', (req, res) => {
     const shiftIndex = data.shifts.findIndex(s => s.id === req.params.id);
     if (shiftIndex === -1) return res.status(404).json({ error: 'シフトが見つかりません' });
 
-    const updatableFields = ['title', 'description', 'dates', 'deadline', 'responseType', 'slotInterval', 'required_skill_level'];
+    const updatableFields = ['title', 'description', 'dates', 'deadline', 'responseType', 'slotInterval', 'required_skill_level', 'required_staff_count', 'allow_preferred_count'];
     updatableFields.forEach(field => {
         if (req.body[field] !== undefined) {
             data.shifts[shiftIndex][field] = req.body[field];
@@ -352,94 +492,243 @@ app.put('/api/shifts/:id', (req, res) => {
     res.json(data.shifts[shiftIndex]);
 });
 
-// 手動シフト割り当て
-app.post('/api/shifts/:id/assign', (req, res) => {
+// シフト削除
+app.delete('/api/shifts/:id', (req, res) => {
     const data = readData();
-    const shift = data.shifts.find(s => s.id === req.params.id);
-    if (!shift) return res.status(404).json({ error: 'シフトが見つかりません' });
-    shift.assigned_user_id = req.body.user_id;
+    const shiftIndex = data.shifts.findIndex(s => s.id === req.params.id);
+    if (shiftIndex === -1) return res.status(404).json({ error: 'シフトが見つかりません' });
+
+    // シフトを削除
+    data.shifts.splice(shiftIndex, 1);
+
+    // 紐づく回答データも削除
+    if (data.responses) {
+        data.responses = data.responses.filter(r => r.shiftId !== req.params.id && r.shift_id !== req.params.id);
+    }
+
     writeData(data);
     res.json({ success: true });
 });
 
-// 自動シフト作成エンジン (Auto-Assign All)
+// ─── スロット生成ヘルパー ───
+function generateTimeSlots(startTime, endTime, intervalMin) {
+    const slots = [];
+    const interval = parseInt(intervalMin) || 30;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    let cur = sh * 60 + sm;
+    const end = eh * 60 + em;
+    while (cur < end) {
+        const next = Math.min(cur + interval, end);
+        const s = `${String(Math.floor(cur / 60)).padStart(2, '0')}:${String(cur % 60).padStart(2, '0')}`;
+        const e = `${String(Math.floor(next / 60)).padStart(2, '0')}:${String(next % 60).padStart(2, '0')}`;
+        slots.push(`${s}-${e}`);
+        cur = next;
+    }
+    return slots;
+}
+
+// 手動シフト割り当て（スロット単位対応）
+app.post('/api/shifts/:id/assign', (req, res) => {
+    const data = readData();
+    const shift = data.shifts.find(s => s.id === req.params.id);
+    if (!shift) return res.status(404).json({ error: 'シフトが見つかりません' });
+
+    const { user_id, date, slot } = req.body;
+
+    if (date) {
+        if (!shift.assignments) shift.assignments = [];
+        const existing = shift.assignments.find(a => a.date === date && a.user_id === user_id && (slot ? a.slot === slot : !a.slot));
+        if (!existing) {
+            shift.assignments.push({ date, slot: slot || null, user_id, assignedAt: new Date().toISOString() });
+        }
+    } else {
+        shift.assigned_user_id = user_id;
+    }
+
+    writeData(data);
+    res.json({ success: true });
+});
+
+// 割り当て解除（スロット単位対応）
+app.post('/api/shifts/:id/unassign', (req, res) => {
+    const data = readData();
+    const shift = data.shifts.find(s => s.id === req.params.id);
+    if (!shift) return res.status(404).json({ error: 'シフトが見つかりません' });
+
+    const { user_id, date, slot } = req.body;
+
+    if (date && shift.assignments) {
+        if (slot) {
+            shift.assignments = shift.assignments.filter(a => !(a.date === date && a.slot === slot && a.user_id === user_id));
+        } else {
+            shift.assignments = shift.assignments.filter(a => !(a.date === date && a.user_id === user_id));
+        }
+    } else {
+        shift.assigned_user_id = null;
+    }
+
+    writeData(data);
+    res.json({ success: true });
+});
+
+// 自動シフト割り当てエンジン v3（スロット単位）
+// 各日の各30分コマごとに、◯をつけたスタッフの中から必要人数分を公平に選ぶ
 app.post('/api/shifts/auto-assign-all', (req, res) => {
     const data = readData();
+    const ownerId = getOwnerId(req);
     let assignedCount = 0;
+    const assignmentDetails = [];
 
-    // 未割当のシフトを取得
-    const unassignedShifts = data.shifts.filter(s => !s.assigned_user_id);
+    // ownerId対応: 自分のシフトとスタッフのみ対象
+    const myShifts = ownerId
+        ? data.shifts.filter(s => s.ownerId === ownerId)
+        : data.shifts;
+    const myStaff = ownerId
+        ? data.members.filter(m => m.role === 'staff' && m.ownerId === ownerId)
+        : data.members.filter(m => m.role === 'staff');
 
-    unassignedShifts.forEach(shift => {
-        // このシフトへの全回答
-        const shiftResponses = data.responses.filter(r => r.shiftId === shift.id || r.shift_id === shift.id);
-        const reqSkill = shift.required_skill_level || 1;
+    // 全スタッフのスロット割り当て数を事前計算
+    const memberSlotCounts = {};
+    myStaff.forEach(m => { memberSlotCounts[m.id] = 0; });
+    myShifts.forEach(s => {
+        if (s.assignments) s.assignments.forEach(a => {
+            memberSlotCounts[a.user_id] = (memberSlotCounts[a.user_id] || 0) + 1;
+        });
+    });
 
-        // 候補者のスコアリング
-        let candidates = data.members.filter(m => m.role === 'staff' && (m.skill_level || 1) >= reqSkill).map(member => {
-            let score = 0;
-            let canWork = false;
+    myShifts.forEach(shift => {
+        if (!shift.dates || shift.dates.length === 0) return;
 
-            // 1. 希望状況のスコア化 (◎=100, △=50, ×=-1000)
-            const userResponse = shiftResponses.find(r => r.userId === member.id || r.user_id === member.id);
-            if (userResponse && userResponse.dailyResponses) {
-                // シフトの全日程で判断（簡単のため最初の日程を基準とするか、平均をとる）
-                const mainDate = shift.dates ? shift.dates[0].date : shift.date;
-                const daily = userResponse.dailyResponses.find(dr => dr.date === mainDate);
-                if (daily) {
-                    if (daily.status === 'available') { score += 100; canWork = true; }
-                    else if (daily.status === 'partial') { score += 50; canWork = true; }
-                    else { score -= 1000; }
-                }
-            }
+        const requiredCount = parseInt(shift.required_staff_count) || 1;
+        const interval = parseInt(shift.slotInterval) || 30;
+        const shiftResponses = (data.responses || []).filter(r => r.shiftId === shift.id || r.shift_id === shift.id);
+        if (!shift.assignments) shift.assignments = [];
 
-            // 回答がない、または✕なら候補から除外
-            if (!canWork) return null;
+        shift.dates.forEach(dateInfo => {
+            const dateStr = dateInfo.date;
+            const timeSlots = generateTimeSlots(dateInfo.startTime, dateInfo.endTime, interval);
 
-            // 2. 公平分散ロジック (現状の割当数が多いほどスコアを下げる)
-            const currentWorkload = data.shifts.filter(s => s.assigned_user_id === member.id).length;
-            score -= (currentWorkload * 30);
+            timeSlots.forEach(slotKey => {
+                // このスロットに既に必要人数分 割り当て済みなら飛ばす
+                const currentAssigned = shift.assignments.filter(a => a.date === dateStr && a.slot === slotKey);
+                const needed = requiredCount - currentAssigned.length;
+                if (needed <= 0) return;
 
-            // 3. 相性ルールの適用
-            const shiftDate = shift.dates ? shift.dates[0].date : shift.date;
-            // 同じ日に既にシフトに入っている人を抽出
-            const workingToday = data.shifts.filter(s => s.assigned_user_id && (s.dates ? s.dates[0].date : s.date) === shiftDate).map(s => s.assigned_user_id);
+                // スロットの開始・終了時間
+                const [slotStart, slotEnd] = slotKey.split('-');
+                const slotStartMin = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
+                const slotEndMin = parseInt(slotEnd.split(':')[0]) * 60 + parseInt(slotEnd.split(':')[1]);
 
-            if (data.pairings) {
-                data.pairings.forEach(rule => {
-                    const isM1 = rule.member1_id === member.id;
-                    const isM2 = rule.member2_id === member.id;
-                    if (!isM1 && !isM2) return;
+                // 候補者を評価
+                let candidates = myStaff
+                    .map(member => {
+                        if (currentAssigned.some(a => a.user_id === member.id)) return null;
 
-                    const otherId = isM1 ? rule.member2_id : rule.member1_id;
+                        const userResponse = shiftResponses.find(r => r.userId === member.id || r.user_id === member.id);
+                        if (!userResponse || !userResponse.dailyResponses) return null;
 
-                    // 相手が今日働く場合
-                    if (workingToday.includes(otherId)) {
-                        if (rule.type === 'pair') score += 80; // 一緒にする
-                        if (rule.type === 'anti_pair') score -= 500; // 絶対に避ける
-                    }
+                        const daily = userResponse.dailyResponses.find(dr => dr.date === dateStr);
+                        if (!daily) return null;
+                        if (daily.status === 'unavailable') return null;
+
+                        // スロットレベルのチェック
+                        let canWorkSlot = false;
+                        if (daily.status === 'available') {
+                            canWorkSlot = true; // 全コマOK
+                        } else if (daily.status === 'partial') {
+                            // 個別スロットをチェック
+                            if (daily.slots) {
+                                // スロットインデックスから判定
+                                const dateSlots = generateTimeSlots(dateInfo.startTime, dateInfo.endTime, interval);
+                                const slotIdx = dateSlots.indexOf(slotKey);
+                                if (slotIdx >= 0 && daily.slots[slotIdx] && daily.slots[slotIdx].status === 'available') {
+                                    canWorkSlot = true;
+                                }
+                            }
+                            // 時間指定モードの場合
+                            if (daily.startTime && daily.endTime) {
+                                const userStartMin = parseInt(daily.startTime.split(':')[0]) * 60 + parseInt(daily.startTime.split(':')[1]);
+                                const userEndMin = parseInt(daily.endTime.split(':')[0]) * 60 + parseInt(daily.endTime.split(':')[1]);
+                                if (slotStartMin >= userStartMin && slotEndMin <= userEndMin) {
+                                    canWorkSlot = true;
+                                }
+                            }
+                        }
+                        if (!canWorkSlot) return null;
+
+                        // スコア計算（公平分散）
+                        let score = 0;
+                        const currentCount = memberSlotCounts[member.id] || 0;
+                        score -= currentCount * 10; // スロット数ベースで均等化
+
+                        if (shift.allow_preferred_count && userResponse.preferredCount) {
+                            const preferred = parseInt(userResponse.preferredCount);
+                            const dayCount = shift.assignments.filter(a => a.user_id === member.id).length;
+                            if (dayCount < preferred * timeSlots.length / shift.dates.length) score += 200;
+                            else score -= 150;
+                        }
+
+                        score += Math.random() * 5; // ランダムシャッフル
+
+                        // 相性ルール
+                        if (data.pairings) {
+                            const workingNow = shift.assignments.filter(a => a.date === dateStr && a.slot === slotKey).map(a => a.user_id);
+                            data.pairings.forEach(rule => {
+                                const isM1 = rule.member1_id === member.id;
+                                const isM2 = rule.member2_id === member.id;
+                                if (!isM1 && !isM2) return;
+                                const otherId = isM1 ? rule.member2_id : rule.member1_id;
+                                if (workingNow.includes(otherId)) {
+                                    if (rule.type === 'pair') score += 80;
+                                    if (rule.type === 'anti_pair') score -= 500;
+                                }
+                            });
+                        }
+
+                        return { memberId: member.id, memberName: member.name, score };
+                    })
+                    .filter(c => c !== null);
+
+                candidates.sort((a, b) => b.score - a.score);
+                const winners = candidates.slice(0, needed);
+
+                winners.forEach(winner => {
+                    shift.assignments.push({
+                        date: dateStr,
+                        slot: slotKey,
+                        user_id: winner.memberId,
+                        assignedAt: new Date().toISOString()
+                    });
+                    memberSlotCounts[winner.memberId] = (memberSlotCounts[winner.memberId] || 0) + 1;
+                    assignedCount++;
+                    assignmentDetails.push({
+                        shiftTitle: shift.title,
+                        date: dateStr,
+                        slot: slotKey,
+                        memberName: winner.memberName
+                    });
                 });
-            }
-
-            return { memberId: member.id, score };
-        }).filter(c => c !== null);
-
-        // スコア順にソートして一番高い人を割り当て
-        candidates.sort((a, b) => b.score - a.score);
-
-        if (candidates.length > 0) {
-            shift.assigned_user_id = candidates[0].memberId;
-            assignedCount++;
-        }
+            });
+        });
     });
 
     if (assignedCount > 0) writeData(data);
-    res.json({ success: true, count: assignedCount });
+    res.json({ success: true, count: assignedCount, details: assignmentDetails });
 });
 
 app.get('/api/members', (req, res) => {
     const data = readData();
-    res.json(data.members.map(({ password, ...m }) => m));
+    const ownerId = getOwnerId(req);
+    let filtered = data.members;
+    if (ownerId) {
+        // 管理者: 自分自身 + 自分のownerId配下のスタッフのみ
+        filtered = data.members.filter(m =>
+            m.id === ownerId ||
+            m.ownerId === ownerId
+        );
+    }
+    res.json(filtered.map(({ password, ...m }) => m));
 });
 
 // メンバー削除
@@ -533,10 +822,14 @@ app.post('/api/test-login', (req, res) => {
     const { role } = req.body;
     const data = readData();
 
-    // テストアカウント定義
+    // テストアカウント定義（スタッフ5人分）
     const testAccounts = {
         admin: { username: 'admin', password: 'admin123', name: '管理者', role: 'admin' },
-        staff: { username: 'staff1', password: 'staff123', name: 'スタッフ1', role: 'staff' }
+        staff1: { username: 'staff1', password: 'staff123', name: 'スタッフ1', role: 'staff' },
+        staff2: { username: 'staff2', password: 'staff123', name: 'スタッフ2', role: 'staff' },
+        staff3: { username: 'staff3', password: 'staff123', name: 'スタッフ3', role: 'staff' },
+        staff4: { username: 'staff4', password: 'staff123', name: 'スタッフ4', role: 'staff' },
+        staff5: { username: 'staff5', password: 'staff123', name: 'スタッフ5', role: 'staff' },
     };
 
     const account = testAccounts[role];

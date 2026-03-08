@@ -90,7 +90,9 @@ function updateStats() {
     document.getElementById('stat-total-shifts').textContent = shifts.length;
     document.getElementById('stat-active-members').textContent = members.filter(m => m.role === 'staff').length;
     document.getElementById('stat-total-responses').textContent = responses.length;
-    document.getElementById('stat-pending-shifts').textContent = shifts.filter(s => !s.assigned_user_id).length;
+    // assigned_user_idまたはassignmentsがあるものは割当済み
+    const assignedCount = shifts.filter(s => s.assigned_user_id || (s.assignments && s.assignments.length > 0)).length;
+    document.getElementById('stat-pending-shifts').textContent = shifts.length - assignedCount;
 }
 
 // 最近のシフト表示
@@ -113,104 +115,148 @@ function displayRecentShifts() {
                     </p>
                 </div>
                 <div>
-                    ${shift.assigned_user_id ? `<span class="badge badge-success">割当済</span>` : `<span class="badge badge-warning">未割当</span>`}
+                    ${(shift.assigned_user_id || (shift.assignments && shift.assignments.length > 0)) ? `<span class="badge badge-success">割当済</span>` : `<span class="badge badge-warning">未割当</span>`}
                 </div>
             </div>
         </div>
     `).join('');
 }
 
-// シフト一覧読み込み
+// スロット生成（クライアント側）
+function generateTimeSlotsClient(startTime, endTime, intervalMin) {
+    const slots = [];
+    const interval = parseInt(intervalMin) || 30;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    let cur = sh * 60 + sm;
+    const end = eh * 60 + em;
+    while (cur < end) {
+        const next = Math.min(cur + interval, end);
+        const s = `${String(Math.floor(cur / 60)).padStart(2, '0')}:${String(cur % 60).padStart(2, '0')}`;
+        const e = `${String(Math.floor(next / 60)).padStart(2, '0')}:${String(next % 60).padStart(2, '0')}`;
+        slots.push({ key: `${s}-${e}`, start: s, end: e });
+        cur = next;
+    }
+    return slots;
+}
+
+// シフト一覧読み込み（タイムライン・グリッド方式）
 async function loadShifts() {
     try {
         const response = await fetch('/api/shifts', { credentials: 'include' });
         shifts = await response.json();
-
+        if (members.length === 0) {
+            const membersRes = await fetch('/api/members', { credentials: 'include' });
+            members = await membersRes.json();
+        }
+        const responsesRes = await fetch('/api/responses', { credentials: 'include' });
+        responses = await responsesRes.json();
         const container = document.getElementById('shifts-list');
-
         if (shifts.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><h2>シフトがまだありません</h2><p>新規シフトを作成してください</p></div>';
             return;
         }
-
         container.innerHTML = shifts.map(shift => {
-            const assignedMember = members.find(m => m.id === shift.assigned_user_id);
             const shiftResponses = responses.filter(r => r.shift_id === shift.id || r.shiftId === shift.id);
-            // new response logic
-            let availableCount = 0;
-            shiftResponses.forEach(r => {
-                if (r.dailyResponses && r.dailyResponses.length > 0) {
-                    r.dailyResponses.forEach(dr => {
-                        if (dr.status === 'available' || dr.status === 'partial') availableCount++;
-                    })
-                }
-            });
-
-            // 🌟 提出期限のラベルを追加
+            const dateCols = (shift.dates && shift.dates.length > 0) ? shift.dates : [];
+            const staffMembers = members.filter(m => m.role === 'staff');
+            const assignments = shift.assignments || [];
+            const requiredCount = parseInt(shift.required_staff_count) || 1;
+            const interval = parseInt(shift.slotInterval) || 30;
             let deadlineHtml = '';
             if (shift.deadline) {
                 const dt = new Date(shift.deadline);
                 const isExpired = dt < new Date();
-                deadlineHtml = `<div style="display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; ${isExpired ? 'background: #fee2e2; color: #ef4444;' : 'background: #fffbeb; color: #d97706; border: 1px solid #fcd34d;'}">⏰ 提出期限: ${dt.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} ${isExpired ? '(終了)' : ''}</div>`;
+                deadlineHtml = `<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold;${isExpired ? 'background:#fee2e2;color:#ef4444;' : 'background:#fffbeb;color:#d97706;'}">⏰ ${dt.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })} ${isExpired ? '(終了)' : ''}</span>`;
             }
-
-            return `
-                <div class="card" style="border-left: 4px solid var(--accent-primary); padding: 15px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-                        <h2 style="font-size: 16px; font-weight: 800; margin: 0;">${shift.title} <span style="font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 10px;">必要Lv: <span class="skill-badge skill-lv${shift.required_skill_level || 1}">Lv ${shift.required_skill_level || 1}</span></span></h2>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            ${deadlineHtml.replace('margin-bottom: 12px;', 'margin-bottom: 0;')}
-                            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="openEditShiftModal('${shift.id}')">編集</button>
-                            <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteShift('${shift.id}')">削除</button>
-                        </div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                        <div style="color: var(--text-secondary);">
-                            ${shift.dates ? shift.dates.map(d => `<span style="margin-right: 15px;">📅 ${formatDate(d.date)} ${d.startTime} - ${d.endTime}</span>`).join('') : `<span>📅 ${shift.date}</span>`}
-                        </div>
-                    </div>
-                    ${shift.description ? `<p style="color: var(--text-secondary); margin-top: 8px; font-size: 12px;">📝 ${shift.description}</p>` : ''}
-
-                    ${assignedMember ? `
-                        <div style="padding: 10px; background: var(--bg-tertiary); border-radius: 6px; margin-top: 10px; display: inline-block;">
-                            <strong style="font-size: 12px;">割当済:</strong> <span style="font-size: 14px;">${assignedMember.name}</span> 
-                            <span class="skill-badge skill-lv${assignedMember.skill_level}">Lv ${assignedMember.skill_level}</span>
-                        </div>
-                    ` : `
-                        <div style="padding: 10px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 6px; margin-top: 10px; display: inline-block;">
-                            <strong style="color: var(--warning); font-size: 12px;">未割当</strong>
-                        </div>
-                    `}
-
-                    ${!assignedMember && shiftResponses.length > 0 ? `
-                        <div style="margin-top: 15px;">
-                            <strong style="margin-bottom: 10px; display: block; color: var(--text-secondary); font-size: 14px;">回答したメンバー (${shiftResponses.length}件)</strong>
-                            ${shiftResponses.map(r => {
-                const member = members.find(m => m.id === r.userId || m.id === r.user_id);
-                if (!member) return '';
-
-                const reqSkill = shift.required_skill_level || 1;
-                const canAssign = member.skill_level >= reqSkill;
-
-                return `
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border-color);">
-                                        <div>
-                                            <span style="font-weight: bold; margin-right: 10px;">${member.name}</span> 
-                                            <span class="skill-badge skill-lv${member.skill_level || 1}">Lv ${member.skill_level || 1}</span>
-                                            ${!canAssign ? '<span style="color: var(--danger); font-size: 12px; font-weight: bold; margin-left: 10px; padding: 2px 6px; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">スキル不足</span>' : ''}
-                                        </div>
-                                        ${canAssign ? `
-                                            <button class="btn btn-success" style="padding: 6px 16px; font-size: 13px; font-weight: bold; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);" onclick="assignShift('${shift.id}', '${member.id}')">
-                                                割り当て
-                                            </button>
-                                        ` : ''}
-                                    </div>
-                                `;
-            }).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-            `;
+            let gridHtml = '';
+            if (dateCols.length > 0) {
+                let allSlotKeys = new Set();
+                const dateSlotMap = {};
+                dateCols.forEach(d => {
+                    const slots = generateTimeSlotsClient(d.startTime, d.endTime, interval);
+                    dateSlotMap[d.date] = slots;
+                    slots.forEach(s => allSlotKeys.add(s.key));
+                });
+                const sortedSlots = Array.from(allSlotKeys).sort();
+                const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+                let rowIdx = 0;
+                gridHtml = `<div style="overflow-x:auto;margin-top:14px;border-radius:12px;border:1px solid var(--border-color);box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;">
+                    <thead>
+                        <tr style="background:linear-gradient(180deg,#f8fafc,#f1f5f9);border-bottom:2px solid var(--border-color);">
+                            <th style="padding:10px 14px;border-right:2px solid var(--border-color);text-align:left;position:sticky;left:0;background:linear-gradient(180deg,#f8fafc,#f1f5f9);z-index:3;min-width:80px;font-size:12px;color:#64748b;">⏰ 時間</th>
+                            ${dateCols.map(d => {
+                    const dateObj = new Date(d.date);
+                    const dn = dayNames[dateObj.getDay()];
+                    const isSun = dateObj.getDay() === 0;
+                    const isSat = dateObj.getDay() === 6;
+                    const colColor = isSun ? 'color:#ef4444;' : isSat ? 'color:#3b82f6;' : '';
+                    return `<th style="padding:10px 14px;border-right:1px solid var(--border-color);min-width:150px;text-align:center;${colColor}">
+                                    <div style="font-size:15px;font-weight:800;letter-spacing:0.5px;">${dateObj.getMonth() + 1}/${dateObj.getDate()}</div>
+                                    <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-top:2px;">(${dn}) ${d.startTime}~${d.endTime}</div>
+                                </th>`;
+                }).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                    ${sortedSlots.map((slotKey, si) => {
+                    const [slotStart, slotEnd] = slotKey.split('-');
+                    const isEven = si % 2 === 0;
+                    const rowBg = isEven ? '#ffffff' : '#f8fafc';
+                    const timeBg = isEven ? '#f1f5f9' : '#e8edf2';
+                    return `<tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:8px 12px;border-right:2px solid var(--border-color);font-weight:800;position:sticky;left:0;background:${timeBg};z-index:2;font-size:13px;color:#475569;vertical-align:middle;text-align:center;line-height:1.2;">
+                                ${slotStart}<span style="font-size:10px;color:#94a3b8;font-weight:500;display:block;">~${slotEnd}</span>
+                            </td>
+                            ${dateCols.map(d => {
+                        const dateSlots = dateSlotMap[d.date] || [];
+                        const hasSlot = dateSlots.some(s => s.key === slotKey);
+                        if (!hasSlot) return `<td style="padding:6px;border-right:1px solid #e2e8f0;background:#f1f5f9;text-align:center;"><span style="opacity:0.15;">—</span></td>`;
+                        const slotAssignments = assignments.filter(a => a.date === d.date && a.slot === slotKey);
+                        const legacyAssignments = assignments.filter(a => a.date === d.date && !a.slot);
+                        const allAssigned = [...slotAssignments];
+                        legacyAssignments.forEach(la => { if (!allAssigned.some(a => a.user_id === la.user_id)) allAssigned.push(la); });
+                        const isShort = allAssigned.length < requiredCount;
+                        const isFull = allAssigned.length >= requiredCount;
+                        let bg = rowBg;
+                        if (isShort && allAssigned.length === 0) bg = 'rgba(239,68,68,0.07)';
+                        else if (isShort) bg = 'rgba(251,191,36,0.08)';
+                        else if (isFull) bg = 'rgba(16,185,129,0.06)';
+                        let cellContent = '';
+                        allAssigned.forEach(a => {
+                            const mn = staffMembers.find(m => m.id === a.user_id)?.name || '?';
+                            cellContent += `<div style="display:inline-flex;align-items:center;gap:4px;margin:2px 3px;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(29,155,240,0.1);color:#1d9bf0;border:1px solid rgba(29,155,240,0.18);white-space:nowrap;">
+                                        ${mn}
+                                        <button onclick="unassignSlot('${shift.id}','${a.user_id}','${d.date}','${slotKey}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:11px;padding:0 1px;opacity:0.6;" title="解除">✕</button>
+                                    </div>`;
+                        });
+                        if (isShort) {
+                            const needed = requiredCount - allAssigned.length;
+                            cellContent += `<div style="margin-top:3px;font-size:11px;color:#ef4444;font-weight:700;letter-spacing:0.3px;">⚠ あと${needed}人</div>`;
+                            const assignedIds = allAssigned.map(a => a.user_id);
+                            const cands = staffMembers.filter(m => !assignedIds.includes(m.id));
+                            if (cands.length > 0) {
+                                cellContent += `<select onchange="if(this.value)assignSlot('${shift.id}',this.value,'${d.date}','${slotKey}')" style="margin-top:3px;padding:3px 4px;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;width:100%;background:white;cursor:pointer;color:#64748b;">
+                                            <option value="">+ スタッフ追加...</option>
+                                            ${cands.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                        </select>`;
+                            }
+                        }
+                        return `<td style="padding:6px 8px;border-right:1px solid #e2e8f0;background:${bg};vertical-align:top;text-align:center;min-height:44px;">${cellContent || '<span style="opacity:0.12;font-size:11px;">—</span>'}</td>`;
+                    }).join('')}
+                        </tr>`;
+                }).join('')}
+                    </tbody>
+                    </table>
+                </div>`;
+            }
+            const respondedIds = shiftResponses.map(r => r.userId || r.user_id);
+            const noResponseStaff = staffMembers.filter(m => !respondedIds.includes(m.id));
+            let totalSlots = 0, filledSlots = 0;
+            dateCols.forEach(d => { const slots = generateTimeSlotsClient(d.startTime, d.endTime, interval); slots.forEach(s => { totalSlots++; const assigned = assignments.filter(a => a.date === d.date && a.slot === s.key).length; if (assigned >= requiredCount) filledSlots++; }); });
+            const fillRate = totalSlots > 0 ? Math.round(filledSlots / totalSlots * 100) : 0;
+            return `<div class="card" style="border-left:4px solid var(--accent-primary);padding:15px;margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px dashed var(--border-color);padding-bottom:10px;margin-bottom:10px;"><h2 style="font-size:16px;font-weight:800;margin:0;">${shift.title}</h2><div style="display:flex;gap:8px;align-items:center;">${deadlineHtml}<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="openEditShiftModal('${shift.id}')">編集</button><button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteShift('${shift.id}')">削除</button></div></div>${shift.description ? `<p style="color:var(--text-secondary);font-size:12px;margin-bottom:8px;">📝 ${shift.description}</p>` : ''}<div style="display:flex;gap:10px;font-size:12px;margin-bottom:8px;flex-wrap:wrap;"><span style="padding:3px 8px;border-radius:6px;background:rgba(29,155,240,0.1);color:var(--accent-primary);font-weight:700;">回答 ${shiftResponses.length}/${staffMembers.length}</span><span style="padding:3px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:var(--success);font-weight:700;">必要 ${requiredCount}名/コマ</span><span style="padding:3px 8px;border-radius:6px;background:${fillRate >= 100 ? 'rgba(0,186,124,0.1);color:var(--success)' : 'rgba(244,33,46,0.08);color:var(--danger)'};font-weight:700;">充足率 ${fillRate}%</span>${assignments.length > 0 ? `<span style="padding:3px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:var(--success);font-weight:700;">📌 ${assignments.length}件割当</span>` : ''} ${noResponseStaff.length > 0 ? `<span style="padding:3px 8px;border-radius:6px;background:rgba(244,33,46,0.08);color:var(--danger);font-weight:700;">未回答: ${noResponseStaff.map(m => m.name).join(', ')}</span>` : ''}</div>${gridHtml}</div>`;
         }).join('');
     } catch (error) {
         console.error('シフトの読み込みに失敗:', error);
@@ -218,31 +264,209 @@ async function loadShifts() {
     }
 }
 
-// シフト割り当て（復元！）
-async function assignShift(shiftId, userId) {
+// スロット単位の手動割り当て
+async function assignSlot(shiftId, userId, date, slot) {
     try {
-        const response = await fetch(`/api/shifts/${shiftId}/assign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ user_id: userId })
-        });
-
-        if (response.ok) {
-            showAlert('シフトを割り当てました', 'success');
-            loadShifts();
-            loadDashboard();
-        } else {
-            const error = await response.json();
-            showAlert(error.error || 'シフトの割り当てに失敗しました', 'error');
-        }
-    } catch (error) {
-        console.error('シフト割り当てエラー:', error);
-        showAlert('シフトの割り当てに失敗しました', 'error');
-    }
+        const res = await fetch(`/api/shifts/${shiftId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ user_id: userId, date, slot }) });
+        if (res.ok) { showAlert('割り当てました！', 'success'); loadShifts(); } else { showAlert('割り当てに失敗しました', 'error'); }
+    } catch (e) { showAlert('通信エラー', 'error'); }
 }
 
-// 魔法の自動生成（一括シフト作成）
+// スロット単位の割り当て解除
+async function unassignSlot(shiftId, userId, date, slot) {
+    try {
+        const res = await fetch(`/api/shifts/${shiftId}/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ user_id: userId, date, slot }) });
+        if (res.ok) { showAlert('解除しました', 'success'); loadShifts(); } else { showAlert('解除に失敗しました', 'error'); }
+    } catch (e) { showAlert('通信エラー', 'error'); }
+}
+
+// シフト表PDFエクスポート（クリーンHTMLテーブル → html2canvas → jsPDF）
+async function exportAllShiftsPDF() {
+    if (shifts.length === 0) {
+        showAlert('出力するシフトがありません', 'warning');
+        return;
+    }
+
+    const btn = document.querySelector('button[onclick="exportAllShiftsPDF()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const staffMembers = members.filter(m => m.role === 'staff');
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+        for (let si = 0; si < shifts.length; si++) {
+            if (si > 0) pdf.addPage();
+            const shift = shifts[si];
+            const dateCols = (shift.dates && shift.dates.length > 0) ? shift.dates : [];
+            const assignments = shift.assignments || [];
+            const requiredCount = parseInt(shift.required_staff_count) || 1;
+            const interval = parseInt(shift.slotInterval) || 30;
+
+            // 全スロットキー
+            let allSlotKeys = new Set();
+            const dateSlotMap = {};
+            dateCols.forEach(d => {
+                const slots = generateTimeSlotsClient(d.startTime, d.endTime, interval);
+                dateSlotMap[d.date] = slots;
+                slots.forEach(s => allSlotKeys.add(s.key));
+            });
+            const sortedSlots = Array.from(allSlotKeys).sort();
+
+            // ── 裏でクリーンなHTMLテーブルを構築 ──
+            const container = document.createElement('div');
+            container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;background:#fff;padding:24px 20px;font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;';
+
+            // タイトルヘッダー
+            const title = document.createElement('div');
+            title.style.cssText = 'margin-bottom:12px;';
+            title.innerHTML = `
+                <div style="font-size:20px;font-weight:bold;color:#1a1a1a;margin-bottom:4px;">${shift.title || 'シフト表'}</div>
+                <div style="font-size:11px;color:#666;display:flex;gap:16px;">
+                    <span>必要人数: ${requiredCount}名/コマ</span>
+                    <span>コマ: ${interval}分</span>
+                    <span>出力日時: ${new Date().toLocaleString('ja-JP')}</span>
+                </div>
+            `;
+            container.appendChild(title);
+
+            if (dateCols.length === 0 || sortedSlots.length === 0) {
+                const noData = document.createElement('p');
+                noData.textContent = 'データがありません';
+                noData.style.cssText = 'color:#999;font-size:14px;';
+                container.appendChild(noData);
+            } else {
+                // テーブル生成
+                const table = document.createElement('table');
+                table.style.cssText = 'border-collapse:collapse;width:100%;font-size:11px;';
+
+                // ヘッダー
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                const thTime = document.createElement('th');
+                thTime.textContent = '時間';
+                thTime.style.cssText = 'border:1px solid #999;padding:6px 8px;background:#e8e8e8;font-weight:bold;text-align:center;min-width:70px;color:#333;';
+                headerRow.appendChild(thTime);
+
+                dateCols.forEach(d => {
+                    const dt = new Date(d.date);
+                    const th = document.createElement('th');
+                    th.textContent = `${dt.getMonth() + 1}/${dt.getDate()} (${dayNames[dt.getDay()]})`;
+                    const isSun = dt.getDay() === 0;
+                    const isSat = dt.getDay() === 6;
+                    th.style.cssText = `border:1px solid #999;padding:6px 10px;background:#e8e8e8;font-weight:bold;text-align:center;min-width:100px;color:${isSun ? '#d00' : isSat ? '#06c' : '#333'};`;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // ボディ
+                const tbody = document.createElement('tbody');
+                sortedSlots.forEach((slotKey, ri) => {
+                    const tr = document.createElement('tr');
+                    const [slotStart, slotEnd] = slotKey.split('-');
+
+                    // 時間セル
+                    const tdTime = document.createElement('td');
+                    tdTime.textContent = `${slotStart}~${slotEnd}`;
+                    tdTime.style.cssText = `border:1px solid #999;padding:5px 8px;background:${ri % 2 === 0 ? '#f5f5f5' : '#eee'};font-weight:bold;text-align:center;color:#444;white-space:nowrap;`;
+                    tr.appendChild(tdTime);
+
+                    dateCols.forEach(d => {
+                        const td = document.createElement('td');
+                        const dateSlots = dateSlotMap[d.date] || [];
+                        if (!dateSlots.some(s => s.key === slotKey)) {
+                            td.textContent = '—';
+                            td.style.cssText = `border:1px solid #ccc;padding:5px 6px;text-align:center;background:#f0f0f0;color:#bbb;`;
+                        } else {
+                            const slotAssigns = assignments.filter(a => a.date === d.date && a.slot === slotKey);
+                            const legacyAssigns = assignments.filter(a => a.date === d.date && !a.slot);
+                            const allAssigned = [...slotAssigns];
+                            legacyAssigns.forEach(la => {
+                                if (!allAssigned.some(a => a.user_id === la.user_id)) allAssigned.push(la);
+                            });
+                            const shortage = requiredCount - allAssigned.length;
+
+                            if (allAssigned.length === 0) {
+                                // 完全欠員
+                                td.textContent = `— (${requiredCount}名不足)`;
+                                td.style.cssText = 'border:1px solid #ccc;padding:5px 6px;text-align:center;background:#fdd;color:#c00;font-weight:bold;';
+                            } else {
+                                const names = allAssigned.map(a => {
+                                    const m = staffMembers.find(mm => mm.id === a.user_id);
+                                    return m ? m.name : '?';
+                                });
+                                let text = names.join('、');
+                                if (shortage > 0) text += ` (${shortage}名不足)`;
+
+                                td.textContent = text;
+                                if (shortage > 0) {
+                                    td.style.cssText = `border:1px solid #ccc;padding:5px 6px;text-align:center;background:#ffefd5;color:#995500;`;
+                                } else {
+                                    td.style.cssText = `border:1px solid #ccc;padding:5px 6px;text-align:center;background:${ri % 2 === 0 ? '#fff' : '#fafafa'};color:#222;`;
+                                }
+                            }
+                        }
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                container.appendChild(table);
+            }
+
+            // 凡例
+            const legend = document.createElement('div');
+            legend.style.cssText = 'margin-top:8px;font-size:10px;color:#888;display:flex;gap:16px;';
+            legend.innerHTML = `
+                <span>■<span style="color:#222;"> 充足</span></span>
+                <span style="color:#995500;">■ 一部不足</span>
+                <span style="color:#c00;">■ 欠員</span>
+            `;
+            container.appendChild(legend);
+
+            document.body.appendChild(container);
+
+            // html2canvasでキャプチャ
+            const canvas = await html2canvas(container, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+
+            document.body.removeChild(container);
+
+            // PDFに貼り付け
+            const imgData = canvas.toDataURL('image/png');
+            const availW = pageW - margin * 2;
+            const availH = pageH - margin * 2;
+            const imgAspect = canvas.width / canvas.height;
+            let drawW = availW;
+            let drawH = drawW / imgAspect;
+            if (drawH > availH) {
+                drawH = availH;
+                drawW = drawH * imgAspect;
+            }
+            pdf.addImage(imgData, 'PNG', margin, margin, drawW, drawH);
+        }
+
+        const now = new Date();
+        const fname = `シフト表_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}.pdf`;
+        pdf.save(fname);
+        showAlert('PDFをダウンロードしました！', 'success');
+    } catch (error) {
+        console.error('PDF出力エラー:', error);
+        showAlert('PDF出力に失敗しました: ' + error.message, 'error');
+    }
+
+    if (btn) { btn.disabled = false; btn.textContent = '📄 PDF出力'; }
+}
+
+// 魔法の自動生成（スロット単位一括割り当て）
 async function runAutoAssign() {
     if (!confirm('未割当のシフトすべてに対して、希望・相性・実績を元に自動でシフトを組みますか？\n（既に割当済のシフトは変更されません）')) return;
 
@@ -261,9 +485,18 @@ async function runAutoAssign() {
         if (response.ok) {
             const result = await response.json();
             if (result.count > 0) {
+                // 割り当て結果の詳細を表示
+                let detailMsg = `${result.count}件の割り当てが完了しました！\n\n`;
+                if (result.details && result.details.length > 0) {
+                    result.details.forEach(d => {
+                        const dateObj = new Date(d.date);
+                        detailMsg += `📅 ${dateObj.getMonth() + 1}/${dateObj.getDate()} ${d.slot || ''} → ${d.memberName}\n`;
+                    });
+                }
+                alert(detailMsg);
                 showAlert(`${result.count}件のシフトを自動で割り当てました！`, 'success');
             } else {
-                showAlert('該当する候補者が見つからなかったため、割り当てられませんでした（または未割当のシフトがありません）', 'warning');
+                showAlert('該当する候補者が見つかりませんでした（回答がない、または全て✕の可能性があります）', 'warning');
             }
             loadShifts();
             loadDashboard();
@@ -279,6 +512,38 @@ async function runAutoAssign() {
         console.error('自動生成エラー:', error);
         showAlert('通信エラーが発生しました', 'error');
     }
+}
+
+// 招待リンク生成
+async function generateInviteLink() {
+    try {
+        const res = await fetch('/api/invite/create', {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            document.getElementById('invite-url').value = data.url;
+            document.getElementById('invite-modal').style.display = 'block';
+            showAlert('招待リンクを生成しました！', 'success');
+        } else {
+            showAlert(data.error || '招待リンクの生成に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('招待リンク生成エラー:', error);
+        showAlert('通信エラーが発生しました', 'error');
+    }
+}
+
+function copyInviteLink() {
+    const input = document.getElementById('invite-url');
+    input.select();
+    navigator.clipboard.writeText(input.value).then(() => {
+        showAlert('リンクをコピーしました！LINEなどで共有してください 📱', 'success');
+    }).catch(() => {
+        document.execCommand('copy');
+        showAlert('リンクをコピーしました！', 'success');
+    });
 }
 
 // メンバー一覧読み込み
@@ -964,9 +1229,11 @@ async function createComplexShift() {
         description: description,
         responseType: responseType,
         slotInterval: slotInterval,
-        deadline: deadline, // 🌟 3. サーバーに送るデータ（ボール）に期限を入れる！
+        deadline: deadline,
         dates: dates,
-        required_skill_level: 1
+        required_skill_level: 1,
+        required_staff_count: parseInt(document.getElementById('required-staff-count').value) || 1,
+        allow_preferred_count: document.getElementById('allow-preferred-count').checked
     };
 
     try {
@@ -1009,7 +1276,11 @@ function setQuickDeadline(daysToAdd) {
 
 // シフト削除
 async function deleteShift(shiftId) {
-    if (!confirm('このシフトを削除してもよろしいですか？')) return;
+    // setTimeoutでconfirmダイアログが再描画と競合しないようにする
+    const userConfirmed = await new Promise(resolve => {
+        setTimeout(() => resolve(confirm('このシフトを削除してもよろしいですか？\n（関連する回答データも一緒に削除されます）')), 100);
+    });
+    if (!userConfirmed) return;
     try {
         const response = await fetch(`/api/shifts/${shiftId}`, { method: 'DELETE', credentials: 'include' });
         if (response.ok) {
@@ -1017,10 +1288,12 @@ async function deleteShift(shiftId) {
             loadShifts();
             loadDashboard();
         } else {
-            showAlert('シフトの削除に失敗しました', 'error');
+            const err = await response.json();
+            showAlert(err.error || 'シフトの削除に失敗しました', 'error');
         }
     } catch (error) {
         console.error('シフト削除エラー:', error);
+        showAlert('通信エラーが発生しました', 'error');
     }
 }
 // ==========================================
@@ -1104,6 +1377,10 @@ function openEditShiftModal(shiftId) {
         document.getElementById('edit-shift-deadline').value = '';
     }
 
+    // 必要人数・希望シフト数
+    document.getElementById('edit-required-staff-count').value = shift.required_staff_count || 1;
+    document.getElementById('edit-allow-preferred-count').checked = !!shift.allow_preferred_count;
+
     // 日付リスト描画
     renderEditDatesList(shift.dates || []);
 
@@ -1184,7 +1461,9 @@ async function saveEditShift() {
         description: document.getElementById('edit-shift-description').value.trim(),
         deadline: deadlineVal ? new Date(deadlineVal).toISOString() : null,
         slotInterval: document.getElementById('edit-slot-interval').value,
-        dates: updatedDates
+        dates: updatedDates,
+        required_staff_count: parseInt(document.getElementById('edit-required-staff-count').value) || 1,
+        allow_preferred_count: document.getElementById('edit-allow-preferred-count').checked
     };
 
     try {

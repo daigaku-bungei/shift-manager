@@ -378,15 +378,21 @@
     </a>
 
     <div class="hint-box">
-      初期管理者: <strong>admin</strong> / <strong>admin123</strong><br>
-      サンプルスタッフ: <strong>staff1</strong> または <strong>staff2</strong> / <strong>staff123</strong>
+      初めての方は「新規登録」タブからアカウントを作成してください。<br>
+      スタッフの方は管理者から共有された<strong>招待リンク</strong>から参加できます。
     </div>
 
     <div class="test-login-section" id="test-login-section">
       <div class="test-login-label">⚠️ DEV環境限定 ─ クイックログイン</div>
-      <div class="test-login-buttons">
+      <div class="test-login-buttons" style="margin-bottom: 8px;">
         <button type="button" class="btn-test" id="btn-test-admin" onclick="testLogin('admin')">🔐 管理者</button>
-        <button type="button" class="btn-test" id="btn-test-staff" onclick="testLogin('staff')">🧑 スタッフA</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+        <button type="button" class="btn-test" onclick="testLogin('staff1')">🧑 S1</button>
+        <button type="button" class="btn-test" onclick="testLogin('staff2')">🧑 S2</button>
+        <button type="button" class="btn-test" onclick="testLogin('staff3')">🧑 S3</button>
+        <button type="button" class="btn-test" onclick="testLogin('staff4')">🧑 S4</button>
+        <button type="button" class="btn-test" onclick="testLogin('staff5')">🧑 S5</button>
       </div>
     </div>
   </div>
@@ -509,10 +515,10 @@
     });
 
     async function testLogin(role) {
-      const btn = document.getElementById(role === 'admin' ? 'btn-test-admin' : 'btn-test-staff');
+      const btn = event.target;
       const originalText = btn.textContent;
       btn.disabled = true;
-      btn.textContent = 'ログイン中...';
+      btn.textContent = '...';
 
       try {
         const res = await fetch('/api/test-login', {

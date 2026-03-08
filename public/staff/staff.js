@@ -1,31 +1,43 @@
 let currentUser = null;
 let allShifts = [];
 let allResponses = [];
+let mySchedules = [];
+let allMembers = [];
 
+// 回答データ
+// slotResponses[dateIdx] = { mode: 'slot'|'time', slots: { slotIdx: true/false }, timeStart: '10:00', timeEnd: '18:00' }
+let slotResponses = {};
+let currentSelectedShift = null;
+let expandedDateIdx = null; // 展開中の日付
+let submissionMode = 'slot'; // 'slot' or 'time' (デフォルトはコマ割り)
+let isDevMode = false;
 
 // ==========================================
-// 1. 初期設定 ＆ 画面の準備
+// 1. 初期設定
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
     await loadMyInfo();
     setupNavigation();
+    await checkDevMode();
     await loadAllData();
 });
 
-// ▼ 自分のデータを取得
+async function checkDevMode() {
+    try {
+        const res = await fetch('/api/env-mode');
+        const data = await res.json();
+        isDevMode = !data.isProduction;
+    } catch (e) { isDevMode = false; }
+}
+
 async function loadMyInfo() {
     try {
         const res = await fetch('/api/me?role=staff', { credentials: 'include' });
         if (!res.ok) throw new Error('未ログイン');
         currentUser = await res.json();
-
-        // ヘッダーに名前を表示
         document.getElementById('user-name-badge').textContent = currentUser.name + ' さん';
-
-        // 🌟 追加：マイページに名前とIDをデカデカと表示する！
         if (document.getElementById('mypage-name')) {
             document.getElementById('mypage-name').textContent = currentUser.name;
-            // サーバーから来るユーザーIDを表示（ログイン時に使ったIDです）
             document.getElementById('mypage-id').textContent = currentUser.username || currentUser.id;
         }
     } catch (error) {
@@ -33,83 +45,68 @@ async function loadMyInfo() {
     }
 }
 
-// ▼ 下部タブメニューの切り替え機能
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.section');
-
     navItems.forEach(item => {
         item.addEventListener('click', () => {
             navItems.forEach(n => n.classList.remove('active'));
             sections.forEach(s => s.classList.remove('active'));
-
             item.classList.add('active');
             const targetId = item.getAttribute('data-section') + '-section';
             document.getElementById(targetId).classList.add('active');
-
-            // 画面を切り替えるついでに最新データを読み込む
             loadAllData();
         });
     });
 }
 
 // ==========================================
-// 2. データの読み込み ＆ 画面の描画
+// 2. データ読み込み
 // ==========================================
-let mySchedules = [];
-
 async function loadAllData() {
     try {
-        const [shiftsRes, responsesRes, schedulesRes] = await Promise.all([
+        const [shiftsRes, responsesRes, schedulesRes, membersRes] = await Promise.all([
             fetch('/api/shifts', { credentials: 'include' }),
             fetch('/api/responses', { credentials: 'include' }),
-            fetch('/api/me/schedules', { credentials: 'include' })
+            fetch('/api/me/schedules', { credentials: 'include' }),
+            fetch('/api/members', { credentials: 'include' })
         ]);
         allShifts = await shiftsRes.json();
         allResponses = await responsesRes.json();
-
-        if (schedulesRes.ok) {
-            mySchedules = await schedulesRes.json();
-        } else {
-            mySchedules = [];
-        }
+        mySchedules = schedulesRes.ok ? await schedulesRes.json() : [];
+        allMembers = membersRes.ok ? await membersRes.json() : [];
 
         renderDashboard();
-        renderAvailableShifts();
+        renderShiftSubmitSection();
         renderMyCalendar();
     } catch (error) {
         console.error('データの読み込み失敗:', error);
     }
 }
 
-// ▼ 締め切りまでの残り時間を計算する便利ツール
+// ==========================================
+// 3. ダッシュボード
+// ==========================================
 function getDeadlineInfo(deadlineStr) {
     if (!deadlineStr) return { text: '期限なし', isUrgent: false, isExpired: false };
-
     const now = new Date();
     const deadline = new Date(deadlineStr);
     const diffMs = deadline - now;
-
     if (diffMs < 0) return { text: '回答受付終了', isUrgent: false, isExpired: true };
-
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffHours / 24);
-
     if (diffDays > 0) return { text: `残り ${diffDays}日`, isUrgent: false, isExpired: false };
     if (diffHours > 0) return { text: `残り ${diffHours}時間`, isUrgent: true, isExpired: false };
     return { text: `まもなく終了！`, isUrgent: true, isExpired: false };
 }
 
-// ▼ ダッシュボードの描画
 function renderDashboard() {
     if (!currentUser) return;
     const myRespondedShiftIds = allResponses.filter(r => r.userId === currentUser.id).map(r => r.shiftId);
-
     const pendingShifts = allShifts.filter(s =>
         !myRespondedShiftIds.includes(s.id) &&
         (!s.deadline || new Date(s.deadline) > new Date())
     );
-
     document.getElementById('stat-pending').textContent = pendingShifts.length;
     document.getElementById('stat-confirmed').textContent = myRespondedShiftIds.length;
 
@@ -132,15 +129,15 @@ function renderDashboard() {
             </div>`;
         }).join('');
     }
+
+    // テストパネル描画
+    renderTestPanel();
 }
 
-// ▼ シフト提出（未回答）一覧の描画 → 2カラムレイアウト
-let currentSelectedShift = null;
-let currentSelectedDateIndex = null;
-let slotResponses = {}; // { 'dateIndex-slotIndex': 'available'|'partial'|'unavailable' }
-let shiftCalendarDate = new Date();
-
-function renderAvailableShifts() {
+// ==========================================
+// 4. シフト提出セクション
+// ==========================================
+function renderShiftSubmitSection() {
     if (!currentUser) return;
     const myRespondedShiftIds = allResponses.filter(r => r.userId === currentUser.id).map(r => r.shiftId);
     const availableShifts = allShifts.filter(s =>
@@ -157,66 +154,210 @@ function renderAvailableShifts() {
         return;
     }
 
-    // シフト選択タブを描画
-    tabsContainer.innerHTML = availableShifts.map((shift, i) => {
+    tabsContainer.innerHTML = availableShifts.map(shift => {
         const isActive = currentSelectedShift && currentSelectedShift.id === shift.id;
         return `<button class="shift-tab ${isActive ? 'active' : ''}" onclick="selectShiftForSubmission('${shift.id}')">${shift.title || '名称未設定'}</button>`;
     }).join('');
 
-    // 最初のシフトを自動選択
     if (!currentSelectedShift || !availableShifts.find(s => s.id === currentSelectedShift.id)) {
         selectShiftForSubmission(availableShifts[0].id);
     } else {
-        render2ColumnLayout();
+        renderShiftSubmitAll();
     }
 }
 
 function selectShiftForSubmission(shiftId) {
     currentSelectedShift = allShifts.find(s => s.id === shiftId);
-    currentSelectedDateIndex = null;
     slotResponses = {};
+    expandedDateIdx = null;
+    submissionMode = 'slot';
 
-    // タブのactive更新
+    // 初期値: 全日程・全スロットを✕（行けない）で埋める
+    if (currentSelectedShift && currentSelectedShift.dates) {
+        currentSelectedShift.dates.forEach((dateInfo, i) => {
+            const slots = generateSlots(dateInfo);
+            const slotMap = {};
+            slots.forEach((_, si) => { slotMap[si] = false; }); // false = ✕
+            slotResponses[i] = { mode: 'slot', slots: slotMap, timeStart: dateInfo.startTime, timeEnd: dateInfo.endTime };
+        });
+    }
+
     document.querySelectorAll('.shift-tab').forEach(tab => {
         tab.classList.toggle('active', tab.textContent === (currentSelectedShift.title || '名称未設定'));
     });
 
-    // カレンダーの月をシフトの最初の日付に合わせる
-    if (currentSelectedShift.dates && currentSelectedShift.dates.length > 0) {
-        const firstDate = new Date(currentSelectedShift.dates[0].date);
-        shiftCalendarDate = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-    }
-
-    render2ColumnLayout();
+    renderShiftSubmitAll();
 }
 
-function render2ColumnLayout() {
-    if (!currentSelectedShift) return;
-
+// ▼ メイン描画
+function renderShiftSubmitAll() {
+    if (!currentSelectedShift || !currentSelectedShift.dates) return;
     const submitArea = document.getElementById('shift-submit-area');
     const deadlineInfo = getDeadlineInfo(currentSelectedShift.deadline);
+    const dates = currentSelectedShift.dates;
 
-    submitArea.innerHTML = `
-        <div style="margin-bottom: 10px; font-size: 12px; color: var(--text-secondary);">
+    // 回答済み日数を計算
+    let answeredCount = 0;
+    dates.forEach((_, i) => {
+        const resp = slotResponses[i];
+        if (resp) {
+            if (resp.mode === 'time') { answeredCount++; }
+            else if (resp.slots && Object.values(resp.slots).some(v => v === true)) { answeredCount++; }
+        }
+    });
+    const progressPct = dates.length > 0 ? Math.round((answeredCount / dates.length) * 100) : 0;
+
+    let html = '';
+
+    // 概要
+    if (currentSelectedShift.description || currentSelectedShift.deadline) {
+        html += `<div style="margin-bottom: 12px; font-size: 12px; color: var(--text-secondary);">
             ${currentSelectedShift.description ? `📝 ${currentSelectedShift.description}` : ''}
             ${currentSelectedShift.deadline ? ` | ⏰ ${deadlineInfo.text}` : ''}
+        </div>`;
+    }
+
+    // モード切替タブ
+    html += `
+        <div class="mode-tabs">
+            <button class="mode-tab ${submissionMode === 'slot' ? 'active' : ''}" onclick="switchMode('slot')">📊 コマ割り</button>
+            <button class="mode-tab ${submissionMode === 'time' ? 'active' : ''}" onclick="switchMode('time')">🕐 時間指定</button>
         </div>
-        <div class="shift-submit-layout">
-            <div class="shift-left-panel" id="shift-left-panel">
-                ${currentSelectedDateIndex !== null ? renderDateSlots() : renderDateList()}
+    `;
+
+    // 進捗バー
+    html += `
+        <div class="progress-bar-container">
+            <div class="progress-info">
+                <span>回答の進捗（◯がある日をカウント）</span>
+                <span>${answeredCount} / ${dates.length} 日</span>
             </div>
-            <div class="shift-right-panel">
-                <div class="panel-title">📅 カレンダー</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <button onclick="shiftCalPrev()" style="background:none;border:none;font-size:16px;color:var(--accent-primary);cursor:pointer;font-weight:bold;">◀ 前月</button>
-                    <div style="font-size: 14px; font-weight: 800;">${shiftCalendarDate.getFullYear()}年 ${shiftCalendarDate.getMonth() + 1}月</div>
-                    <button onclick="shiftCalNext()" style="background:none;border:none;font-size:16px;color:var(--accent-primary);cursor:pointer;font-weight:bold;">次月 ▶</button>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: ${progressPct}%"></div>
+            </div>
+        </div>
+    `;
+
+    // 一括ボタン
+    if (submissionMode === 'slot') {
+        html += `
+            <div class="bulk-actions">
+                <button class="bulk-btn" onclick="bulkSetAllSlots(true)">✨ 全日程の全コマを◯</button>
+                <button class="bulk-btn" onclick="bulkSetAllSlots(false)">全コマを✕に戻す</button>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="bulk-actions">
+                <button class="bulk-btn" onclick="bulkSetAllTime()">✨ 全日程をフル時間で◯</button>
+                <button class="bulk-btn" onclick="bulkClearTime()">全て未回答に戻す</button>
+            </div>
+        `;
+    }
+
+    // 日付カード一覧
+    dates.forEach((dateInfo, i) => {
+        const d = new Date(dateInfo.date);
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()}(${dayOfWeek})`;
+        const timeLabel = `${dateInfo.startTime} 〜 ${dateInfo.endTime}`;
+        const resp = slotResponses[i];
+
+        let dayColor = '';
+        if (d.getDay() === 0) dayColor = 'color: var(--danger);';
+        else if (d.getDay() === 6) dayColor = 'color: var(--accent-primary);';
+
+        // この日に◯のスロットがあるか判定
+        let hasAvailable = false;
+        let statusClass = 'status-unavailable';
+        if (resp) {
+            if (resp.mode === 'time') {
+                hasAvailable = true;
+                statusClass = 'status-available';
+            } else if (resp.slots) {
+                hasAvailable = Object.values(resp.slots).some(v => v);
+                statusClass = hasAvailable ? 'status-partial' : 'status-unavailable';
+                if (Object.values(resp.slots).every(v => v)) statusClass = 'status-available';
+            }
+        }
+
+        const isExpanded = expandedDateIdx === i;
+
+        if (submissionMode === 'slot') {
+            // コマ割りモード: カード
+            const slots = generateSlots(dateInfo);
+            const availCount = resp ? Object.values(resp.slots).filter(v => v).length : 0;
+
+            html += `
+                <div class="day-answer-card ${statusClass}" id="day-card-${i}">
+                    <div class="day-answer-top" onclick="toggleExpand(${i})" style="cursor: pointer;">
+                        <div class="day-answer-info">
+                            <div class="day-answer-date" style="${dayColor}">${dateLabel}</div>
+                            <div class="day-answer-time">🕐 ${timeLabel}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px; font-weight: 700; color: ${availCount > 0 ? '#00ba7c' : 'var(--text-secondary)'};">${availCount}/${slots.length}コマ◯</span>
+                            <span style="font-size: 16px; transition: transform 0.3s; transform: rotate(${isExpanded ? '180' : '0'}deg); color: var(--text-secondary);">▼</span>
+                        </div>
+                    </div>
+                    <div class="slot-expand ${isExpanded ? 'open' : ''}">
+                        <div class="slot-expand-inner">
+                            <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                                <button class="bulk-btn" style="font-size: 11px; padding: 4px 10px;" onclick="event.stopPropagation(); setAllSlotsForDay(${i}, true)">この日 全◯</button>
+                                <button class="bulk-btn" style="font-size: 11px; padding: 4px 10px;" onclick="event.stopPropagation(); setAllSlotsForDay(${i}, false)">全✕</button>
+                            </div>
+                            <div class="slot-grid">
+                                ${slots.map((slot, si) => {
+                const isOn = resp && resp.slots[si];
+                return `<button class="slot-chip ${isOn ? 'on' : 'off'}" onclick="event.stopPropagation(); toggleSlot(${i}, ${si})">${slot.start}〜${slot.end}</button>`;
+            }).join('')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="shift-calendar" id="shift-calendar-grid"></div>
+            `;
+        } else {
+            // 時間指定モード
+            html += `
+                <div class="day-answer-card ${resp && resp.mode === 'time' ? 'status-available' : 'status-unavailable'}" id="day-card-${i}">
+                    <div class="day-answer-top">
+                        <div class="day-answer-info">
+                            <div class="day-answer-date" style="${dayColor}">${dateLabel}</div>
+                            <div class="day-answer-time">🕐 ${timeLabel}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <input type="time" class="partial-time-input" value="${resp?.timeStart || dateInfo.startTime}"
+                                   onchange="setTimeRange(${i}, 'start', this.value)" style="width: 80px; font-size: 12px;">
+                            <span style="color: var(--text-secondary); font-weight: 700; font-size: 12px;">〜</span>
+                            <input type="time" class="partial-time-input" value="${resp?.timeEnd || dateInfo.endTime}"
+                                   onchange="setTimeRange(${i}, 'end', this.value)" style="width: 80px; font-size: 12px;">
+                            <button class="day-btn ${resp && resp.mode === 'time' ? 'active-circle' : ''}"
+                                    onclick="toggleTimeDay(${i})" style="width: 40px; height: 32px; font-size: 12px;">
+                                ${resp && resp.mode === 'time' ? '◯' : '✕'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    // 希望シフト数（管理者がONにした場合のみ表示）
+    if (currentSelectedShift.allow_preferred_count) {
+        html += `
+            <div style="margin-top: 14px; padding: 12px; background: rgba(29,155,240,0.06); border-radius: 10px; border: 1px solid rgba(29,155,240,0.15);">
+                <label style="display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px; color: var(--accent-primary);">🎯 希望シフト数（この期間で何回入りたいか）</label>
+                <input type="number" id="preferred-count" min="0" max="${dates.length}" placeholder="例: 3" 
+                       style="width: 100px; padding: 8px; border: 1px solid #cfd9de; border-radius: 8px; font-size: 14px; font-family: inherit;">
+                <span style="font-size: 12px; color: var(--text-secondary); margin-left: 6px;">/ ${dates.length}日中</span>
             </div>
-        </div>
+        `;
+    }
+
+    // 備考 + 提出
+    html += `
         <div style="margin-top: 14px;">
-            <label style="display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px;">備考・コメント</label>
+            <label style="display: block; margin-bottom: 6px; font-weight: bold; font-size: 13px;">💬 備考・コメント</label>
             <textarea id="submission-comment" rows="2" placeholder="店長への伝言があれば..."></textarea>
         </div>
         <button class="btn btn-primary" onclick="submitShiftData()" style="margin-top: 12px; font-size: 14px; padding: 12px;">
@@ -224,234 +365,159 @@ function render2ColumnLayout() {
         </button>
     `;
 
-    renderShiftCalendar();
+    submitArea.innerHTML = html;
 }
 
-// ── 左パネル: 候補日一覧 ──
-function renderDateList() {
-    if (!currentSelectedShift.dates || currentSelectedShift.dates.length === 0) {
-        return '<div class="empty-state">日付が設定されていません</div>';
-    }
-
-    let html = '<div class="panel-title">📋 候補日一覧</div>';
-    currentSelectedShift.dates.forEach((dateInfo, i) => {
-        const d = new Date(dateInfo.date);
-        const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
-        const hasAnswer = hasDateAnswer(i);
-
-        html += `
-            <div class="date-list-item ${hasAnswer ? 'answered' : ''}" onclick="selectDate(${i})">
-                <div>
-                    <div class="date-text">${dateStr}</div>
-                    <div class="date-time">${dateInfo.startTime} 〜 ${dateInfo.endTime}</div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    ${hasAnswer ? '<span class="date-status" style="background: #d1fae5; color: #059669;">回答済</span>' : '<span class="date-status" style="background: #fef3c7; color: #d97706;">未回答</span>'}
-                    <span style="color: var(--text-secondary);">▸</span>
-                </div>
-            </div>
-        `;
-    });
-    return html;
-}
-
-function hasDateAnswer(dateIndex) {
-    const slots = generateSlots(currentSelectedShift.dates[dateIndex]);
-    return slots.some((_, slotIdx) => slotResponses[`${dateIndex}-${slotIdx}`]);
-}
-
-// ── 左パネル: コマ割り詳細 ──
-function renderDateSlots() {
-    const dateInfo = currentSelectedShift.dates[currentSelectedDateIndex];
-    const d = new Date(dateInfo.date);
-    const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
-    const slots = generateSlots(dateInfo);
-
-    let html = `
-        <button class="back-btn" onclick="backToDateList()">← 一覧に戻る</button>
-        <div class="panel-title">🕐 ${dateStr} のコマ</div>
-    `;
-
-    slots.forEach((slot, slotIdx) => {
-        const key = `${currentSelectedDateIndex}-${slotIdx}`;
-        const currentStatus = slotResponses[key] || '';
-
-        html += `
-            <div class="slot-card">
-                <div class="slot-time">${slot.start} 〜 ${slot.end}</div>
-                <div class="availability-buttons">
-                    <button class="avail-btn ${currentStatus === 'available' ? 'selected-circle' : ''}" 
-                            onclick="setSlotResponse(${currentSelectedDateIndex}, ${slotIdx}, 'available')">◯ 行ける</button>
-                    <button class="avail-btn ${currentStatus === 'partial' ? 'selected-triangle' : ''}" 
-                            onclick="setSlotResponse(${currentSelectedDateIndex}, ${slotIdx}, 'partial')">△ 条件付き</button>
-                    <button class="avail-btn ${currentStatus === 'unavailable' ? 'selected-cross' : ''}" 
-                            onclick="setSlotResponse(${currentSelectedDateIndex}, ${slotIdx}, 'unavailable')">✕ むり</button>
-                </div>
-            </div>
-        `;
-    });
-
-    return html;
-}
-
-// ── コマ生成ロジック ──
+// ==========================================
+// 5. スロット操作
+// ==========================================
 function generateSlots(dateInfo) {
     const interval = parseInt(currentSelectedShift.slotInterval) || 60;
-    const startMinutes = timeToMinutes(dateInfo.startTime);
-    const endMinutes = timeToMinutes(dateInfo.endTime);
+    const startMin = timeToMinutes(dateInfo.startTime);
+    const endMin = timeToMinutes(dateInfo.endTime);
     const slots = [];
-
-    for (let m = startMinutes; m < endMinutes; m += interval) {
-        const slotEnd = Math.min(m + interval, endMinutes);
-        slots.push({
-            start: minutesToTime(m),
-            end: minutesToTime(slotEnd)
-        });
+    for (let m = startMin; m < endMin; m += interval) {
+        slots.push({ start: minutesToTime(m), end: minutesToTime(Math.min(m + interval, endMin)) });
     }
-
     return slots;
 }
 
-function timeToMinutes(timeStr) {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
-}
+function timeToMinutes(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+function minutesToTime(m) { return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; }
 
-function minutesToTime(minutes) {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-// ── カレンダー描画 ──
-function renderShiftCalendar() {
-    const grid = document.getElementById('shift-calendar-grid');
-    if (!grid) return;
-
-    const year = shiftCalendarDate.getFullYear();
-    const month = shiftCalendarDate.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const today = new Date();
-
-    // シフトの日付セット
-    const shiftDateSet = new Set();
-    if (currentSelectedShift && currentSelectedShift.dates) {
-        currentSelectedShift.dates.forEach(d => {
-            const dt = new Date(d.date);
-            if (dt.getFullYear() === year && dt.getMonth() === month) {
-                shiftDateSet.add(dt.getDate());
+function switchMode(mode) {
+    submissionMode = mode;
+    expandedDateIdx = null;
+    // モード切替時にslotResponsesのmodeをリセット
+    if (currentSelectedShift) {
+        currentSelectedShift.dates.forEach((dateInfo, i) => {
+            if (mode === 'slot') {
+                const slots = generateSlots(dateInfo);
+                const slotMap = {};
+                slots.forEach((_, si) => { slotMap[si] = false; });
+                slotResponses[i] = { mode: 'slot', slots: slotMap, timeStart: dateInfo.startTime, timeEnd: dateInfo.endTime };
+            } else {
+                slotResponses[i] = { mode: 'slot', slots: {}, timeStart: dateInfo.startTime, timeEnd: dateInfo.endTime }; // 未選択状態
             }
         });
     }
-
-    let html = ['日', '月', '火', '水', '木', '金', '土'].map(d => `<div class="cal-header">${d}</div>`).join('');
-
-    // 空セル
-    for (let i = 0; i < firstDay; i++) {
-        html += '<div class="cal-day"></div>';
-    }
-
-    for (let day = 1; day <= daysInMonth; day++) {
-        const hasShift = shiftDateSet.has(day);
-        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
-        const isSelected = currentSelectedDateIndex !== null && (() => {
-            const selDate = new Date(currentSelectedShift.dates[currentSelectedDateIndex].date);
-            return selDate.getFullYear() === year && selDate.getMonth() === month && selDate.getDate() === day;
-        })();
-
-        let classes = 'cal-day';
-        if (hasShift) classes += ' has-shift';
-        if (isToday) classes += ' today';
-        if (isSelected) classes += ' selected';
-
-        const onclick = hasShift ? `onclick="selectDateFromCalendar(${year}, ${month}, ${day})"` : '';
-
-        html += `<div class="${classes}" ${onclick}>${day}</div>`;
-    }
-
-    grid.innerHTML = html;
+    renderShiftSubmitAll();
 }
 
-function selectDateFromCalendar(year, month, day) {
-    if (!currentSelectedShift || !currentSelectedShift.dates) return;
-    const idx = currentSelectedShift.dates.findIndex(d => {
-        const dt = new Date(d.date);
-        return dt.getFullYear() === year && dt.getMonth() === month && dt.getDate() === day;
+function toggleExpand(dateIdx) {
+    expandedDateIdx = expandedDateIdx === dateIdx ? null : dateIdx;
+    renderShiftSubmitAll();
+}
+
+function toggleSlot(dateIdx, slotIdx) {
+    if (!slotResponses[dateIdx]) return;
+    slotResponses[dateIdx].slots[slotIdx] = !slotResponses[dateIdx].slots[slotIdx];
+    renderShiftSubmitAll();
+}
+
+function setAllSlotsForDay(dateIdx, value) {
+    if (!slotResponses[dateIdx]) return;
+    Object.keys(slotResponses[dateIdx].slots).forEach(k => { slotResponses[dateIdx].slots[k] = value; });
+    renderShiftSubmitAll();
+}
+
+function bulkSetAllSlots(value) {
+    Object.keys(slotResponses).forEach(i => {
+        Object.keys(slotResponses[i].slots).forEach(k => { slotResponses[i].slots[k] = value; });
     });
-    if (idx >= 0) selectDate(idx);
+    renderShiftSubmitAll();
 }
 
-function selectDate(index) {
-    currentSelectedDateIndex = index;
-    const leftPanel = document.getElementById('shift-left-panel');
-    if (leftPanel) leftPanel.innerHTML = renderDateSlots();
-    renderShiftCalendar();
+function toggleTimeDay(dateIdx) {
+    const resp = slotResponses[dateIdx];
+    if (resp && resp.mode === 'time') {
+        // 解除
+        slotResponses[dateIdx] = { mode: 'slot', slots: {}, timeStart: resp.timeStart, timeEnd: resp.timeEnd };
+    } else {
+        // 時間指定ON
+        const dateInfo = currentSelectedShift.dates[dateIdx];
+        slotResponses[dateIdx] = {
+            mode: 'time',
+            slots: {},
+            timeStart: resp?.timeStart || dateInfo.startTime,
+            timeEnd: resp?.timeEnd || dateInfo.endTime
+        };
+    }
+    renderShiftSubmitAll();
 }
 
-function backToDateList() {
-    currentSelectedDateIndex = null;
-    const leftPanel = document.getElementById('shift-left-panel');
-    if (leftPanel) leftPanel.innerHTML = renderDateList();
-    renderShiftCalendar();
+function setTimeRange(dateIdx, which, value) {
+    if (!slotResponses[dateIdx]) return;
+    if (which === 'start') slotResponses[dateIdx].timeStart = value;
+    else slotResponses[dateIdx].timeEnd = value;
+    // 入力中に自動的にtimeモードにする
+    slotResponses[dateIdx].mode = 'time';
+    renderShiftSubmitAll();
 }
 
-function setSlotResponse(dateIdx, slotIdx, status) {
-    const key = `${dateIdx}-${slotIdx}`;
-    slotResponses[key] = status;
-    // 再描画（左パネルのみ）
-    const leftPanel = document.getElementById('shift-left-panel');
-    if (leftPanel) leftPanel.innerHTML = renderDateSlots();
+function bulkSetAllTime() {
+    if (!currentSelectedShift) return;
+    currentSelectedShift.dates.forEach((dateInfo, i) => {
+        slotResponses[i] = { mode: 'time', slots: {}, timeStart: dateInfo.startTime, timeEnd: dateInfo.endTime };
+    });
+    renderShiftSubmitAll();
 }
 
-function shiftCalPrev() {
-    shiftCalendarDate.setMonth(shiftCalendarDate.getMonth() - 1);
-    render2ColumnLayout();
-}
-
-function shiftCalNext() {
-    shiftCalendarDate.setMonth(shiftCalendarDate.getMonth() + 1);
-    render2ColumnLayout();
+function bulkClearTime() {
+    if (!currentSelectedShift) return;
+    currentSelectedShift.dates.forEach((dateInfo, i) => {
+        slotResponses[i] = { mode: 'slot', slots: {}, timeStart: dateInfo.startTime, timeEnd: dateInfo.endTime };
+    });
+    renderShiftSubmitAll();
 }
 
 // ==========================================
-// 4. サーバーへ提出する機能
+// 6. 提出
 // ==========================================
 async function submitShiftData() {
     if (!currentSelectedShift) return;
+    const dates = currentSelectedShift.dates;
 
-    // 全日付のスロット回答を集計（未回答は自動的に「行けない」扱い）
-    const dailyResponses = [];
+    const dailyResponses = dates.map((dateInfo, dateIdx) => {
+        const resp = slotResponses[dateIdx];
+        const interval = parseInt(currentSelectedShift.slotInterval) || 60;
+        const startMin = timeToMinutes(dateInfo.startTime);
+        const endMin = timeToMinutes(dateInfo.endTime);
+        const slots = [];
 
-    currentSelectedShift.dates.forEach((dateInfo, dateIdx) => {
-        const slots = generateSlots(dateInfo);
-        const slotData = slots.map((slot, slotIdx) => {
-            const key = `${dateIdx}-${slotIdx}`;
-            const status = slotResponses[key] || 'unavailable'; // 空白=行けない
-            return {
-                start: slot.start,
-                end: slot.end,
-                status: status
-            };
-        });
-
-        dailyResponses.push({
-            date: dateInfo.date,
-            slots: slotData,
-            status: slotData.every(s => s.status === 'available') ? 'available' :
-                slotData.every(s => s.status === 'unavailable') ? 'unavailable' : 'partial'
-        });
+        if (resp && resp.mode === 'time') {
+            // 時間指定モード: 範囲内スロットをavailable
+            const pStart = timeToMinutes(resp.timeStart);
+            const pEnd = timeToMinutes(resp.timeEnd);
+            for (let m = startMin; m < endMin; m += interval) {
+                const slotEnd = Math.min(m + interval, endMin);
+                slots.push({ start: minutesToTime(m), end: minutesToTime(slotEnd), status: (m >= pStart && slotEnd <= pEnd) ? 'available' : 'unavailable' });
+            }
+            return { date: dateInfo.date, slots, status: 'partial' };
+        } else {
+            // コマ割りモード
+            let anyAvailable = false;
+            let allAvailable = true;
+            for (let m = startMin, si = 0; m < endMin; m += interval, si++) {
+                const isOn = resp && resp.slots && resp.slots[si];
+                slots.push({ start: minutesToTime(m), end: minutesToTime(Math.min(m + interval, endMin)), status: isOn ? 'available' : 'unavailable' });
+                if (isOn) anyAvailable = true; else allAvailable = false;
+            }
+            return { date: dateInfo.date, slots, status: allAvailable ? 'available' : anyAvailable ? 'partial' : 'unavailable' };
+        }
     });
 
     if (!confirm('この内容で店長に提出しますか？')) return;
 
     const commentEl = document.getElementById('submission-comment');
+    const preferredEl = document.getElementById('preferred-count');
     const payload = {
         shiftId: currentSelectedShift.id,
         userId: currentUser.id,
         userName: currentUser.name,
         comment: commentEl ? commentEl.value : '',
-        dailyResponses: dailyResponses,
+        preferredCount: preferredEl ? (preferredEl.value || null) : null,
+        dailyResponses,
         submittedAt: new Date().toISOString()
     };
 
@@ -462,39 +528,190 @@ async function submitShiftData() {
             credentials: 'include',
             body: JSON.stringify(payload)
         });
-
         if (res.ok) {
             alert('🎉 シフトの提出が完了しました！');
             currentSelectedShift = null;
             slotResponses = {};
             loadAllData();
-        } else {
-            alert('提出に失敗しました...');
-        }
-    } catch (error) {
-        alert('通信エラーが発生しました。');
-    }
+        } else { alert('提出に失敗しました...'); }
+    } catch (error) { alert('通信エラーが発生しました。'); }
 }
 
 // ==========================================
-// 5. カレンダー＆確定シフトの表示
+// 7. テストパネル（DEV環境のみ）
+// ==========================================
+function renderTestPanel() {
+    const container = document.getElementById('test-panel');
+    if (!container) return;
+    if (!isDevMode) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+
+    // 現在の回答状況サマリー
+    const staffMembers = allMembers.filter(m => m.role === 'staff');
+    const shiftsWithDates = allShifts.filter(s => s.dates && s.dates.length > 0);
+
+    let statusHtml = '';
+    shiftsWithDates.forEach(shift => {
+        const shiftResps = allResponses.filter(r => r.shiftId === shift.id);
+        const reqCount = parseInt(shift.required_staff_count) || 1;
+        statusHtml += `<div style="margin-bottom: 8px;">
+            <strong>${shift.title || '名称未設定'}</strong>
+            <span style="font-size: 12px; color: var(--text-secondary);"> — 回答: ${shiftResps.length}/${staffMembers.length}名 | 必要人数: ${reqCount}名/日</span>
+            ${shift.assignments && shift.assignments.length > 0 ?
+                `<span style="font-size: 12px; color: #00ba7c; margin-left: 6px;">📌 ${shift.assignments.length}件割当済</span>` : ''}
+            ${shift.allow_preferred_count ? '<span style="font-size: 11px; color: var(--accent-primary); margin-left: 4px;">🎯希望数ON</span>' : ''}
+        </div>`;
+        // 割り当て詳細
+        if (shift.assignments && shift.assignments.length > 0) {
+            statusHtml += '<div style="margin-left: 12px; margin-bottom: 8px;">';
+            shift.assignments.forEach(a => {
+                const member = allMembers.find(m => m.id === a.user_id);
+                const d = new Date(a.date);
+                statusHtml += `<div style="font-size: 11px; color: var(--text-secondary);">📅 ${d.getMonth() + 1}/${d.getDate()} → ${member?.name || '不明'}</div>`;
+            });
+            statusHtml += '</div>';
+        }
+    });
+
+    container.innerHTML = `
+        <h3 style="font-size: 16px; margin-bottom: 12px;">🧪 テストパネル <span style="font-size: 11px; color: var(--danger); font-weight: normal;">(DEV環境のみ)</span></h3>
+        <div class="card" style="padding: 14px;">
+            <div style="margin-bottom: 12px; font-size: 13px; font-weight: 700;">📊 現在の状況</div>
+            ${statusHtml || '<div style="font-size: 12px; color: var(--text-secondary);">シフトがありません</div>'}
+            <hr style="border: none; border-top: 1px dashed var(--border-color); margin: 12px 0;">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn btn-primary" onclick="testBulkSubmit()" style="width: auto; padding: 8px 16px; font-size: 13px; border-radius: 10px;">
+                    🤖 全スタッフ分ランダム回答
+                </button>
+                <button class="btn btn-primary" onclick="testAutoAssign()" style="width: auto; padding: 8px 16px; font-size: 13px; border-radius: 10px; background: #00ba7c;">
+                    ⚡ 自動割り当て実行
+                </button>
+                <button class="btn" onclick="testClearAssignments()" style="width: auto; padding: 8px 16px; font-size: 13px; border-radius: 10px; background: rgba(244,33,46,0.06); color: var(--danger); border: 1px solid rgba(244,33,46,0.2);">
+                    🗑️ 割り当てクリア
+                </button>
+            </div>
+            <div id="test-result" style="margin-top: 12px; font-size: 12px;"></div>
+        </div>
+    `;
+}
+
+async function testBulkSubmit() {
+    const resultEl = document.getElementById('test-result');
+    resultEl.textContent = '🔄 全スタッフ分のランダム回答を生成中...';
+
+    const staffMembers = allMembers.filter(m => m.role === 'staff');
+    const shiftsWithDates = allShifts.filter(s => s.dates && s.dates.length > 0);
+
+    let submitCount = 0;
+    for (const shift of shiftsWithDates) {
+        for (const member of staffMembers) {
+            // 既に回答済みならスキップ
+            const alreadySubmitted = allResponses.some(r => r.shiftId === shift.id && r.userId === member.id);
+            if (alreadySubmitted) continue;
+
+            const interval = parseInt(shift.slotInterval) || 60;
+            const dailyResponses = shift.dates.map(dateInfo => {
+                const startMin = timeToMinutes(dateInfo.startTime);
+                const endMin = timeToMinutes(dateInfo.endTime);
+                const slots = [];
+                let anyAvailable = false;
+                let allAvailable = true;
+
+                for (let m = startMin; m < endMin; m += interval) {
+                    // 60%の確率で◯
+                    const isOn = Math.random() < 0.6;
+                    slots.push({ start: minutesToTime(m), end: minutesToTime(Math.min(m + interval, endMin)), status: isOn ? 'available' : 'unavailable' });
+                    if (isOn) anyAvailable = true; else allAvailable = false;
+                }
+
+                return { date: dateInfo.date, slots, status: allAvailable ? 'available' : anyAvailable ? 'partial' : 'unavailable' };
+            });
+
+            await fetch('/api/responses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    shiftId: shift.id,
+                    userId: member.id,
+                    userName: member.name,
+                    comment: '[テスト自動生成]',
+                    dailyResponses,
+                    submittedAt: new Date().toISOString()
+                })
+            });
+            submitCount++;
+        }
+    }
+
+    resultEl.innerHTML = `<span style="color: #00ba7c; font-weight: 700;">✅ ${submitCount}件の回答を自動生成しました！</span>`;
+    await loadAllData();
+}
+
+async function testAutoAssign() {
+    const resultEl = document.getElementById('test-result');
+    resultEl.textContent = '🔄 自動割り当てを実行中...';
+
+    try {
+        const res = await fetch('/api/shifts/auto-assign-all', { method: 'POST', credentials: 'include' });
+        const result = await res.json();
+
+        if (result.count > 0) {
+            let detailHtml = `<span style="color: #00ba7c; font-weight: 700;">✅ ${result.count}件を割り当てました！</span><br>`;
+            if (result.details) {
+                result.details.forEach(d => {
+                    const dateObj = new Date(d.date);
+                    detailHtml += `<div style="margin-top: 2px;">📅 ${dateObj.getMonth() + 1}/${dateObj.getDate()} (${d.shiftTitle}) → <strong>${d.memberName}</strong></div>`;
+                });
+            }
+            resultEl.innerHTML = detailHtml;
+        } else {
+            resultEl.innerHTML = '<span style="color: var(--warning); font-weight: 700;">⚠️ 割り当て候補がありません（回答がないか、全て✕の可能性）</span>';
+        }
+        await loadAllData();
+    } catch (e) {
+        resultEl.innerHTML = '<span style="color: var(--danger);">❌ エラーが発生しました</span>';
+    }
+}
+
+async function testClearAssignments() {
+    if (!confirm('全ての割り当てをクリアしますか？（回答データは残ります）')) return;
+    const resultEl = document.getElementById('test-result');
+
+    // 各シフトのassignmentsをクリア（PUT APIで更新）
+    for (const shift of allShifts) {
+        if (shift.assignments && shift.assignments.length > 0) {
+            for (const a of [...shift.assignments]) {
+                await fetch(`/api/shifts/${shift.id}/unassign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_id: a.user_id, date: a.date })
+                });
+            }
+        }
+    }
+
+    resultEl.innerHTML = '<span style="color: #00ba7c; font-weight: 700;">✅ 割り当てをクリアしました</span>';
+    await loadAllData();
+}
+
+// ==========================================
+// 8. カレンダー＆確定シフト
 // ==========================================
 let currentMyDate = new Date();
 let selectedMyDateStr = null;
 
 function renderMyCalendar() {
     if (!currentUser) return;
-
     const year = currentMyDate.getFullYear();
     const month = currentMyDate.getMonth();
-
     document.getElementById('my-calendar-month-year').textContent = `${year}年 ${month + 1}月`;
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startPadding = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-
     const container = document.getElementById('my-calendar-days');
     let html = '';
 
@@ -510,9 +727,13 @@ function renderMyCalendar() {
         const currentDateStr = `${y}-${m}-${dStr}`;
 
         let shiftHtml = '';
-
-        // 当該スタッフが割り当てられているシフト
         allShifts.forEach(shift => {
+            if (shift.assignments) {
+                const myAssignment = shift.assignments.find(a => a.user_id === currentUser.id && a.date === currentDateStr);
+                if (myAssignment) {
+                    shiftHtml += `<div style="width: 6px; height: 6px; background: var(--accent-primary); border-radius: 50%; margin: 2px auto;"></div>`;
+                }
+            }
             if (shift.assigned_user_id === currentUser.id) {
                 const shiftDates = shift.dates ? shift.dates.map(x => x.date) : [shift.date];
                 if (shiftDates.includes(currentDateStr)) {
@@ -521,7 +742,6 @@ function renderMyCalendar() {
             }
         });
 
-        // 個人のプライベート予定
         const daySchedules = mySchedules.filter(s => s.date === currentDateStr);
         if (daySchedules.length > 0) {
             shiftHtml += `<div style="width: 6px; height: 6px; background: var(--warning); border-radius: 50%; margin: 2px auto;"></div>`;
@@ -533,71 +753,59 @@ function renderMyCalendar() {
         html += `
             <div style="padding: 10px 0; border-radius: 8px; cursor: pointer; ${bg} transition: 0.2s;" onclick="showMyDayDetails('${currentDateStr}')">
                 <div style="font-weight: bold; ${dateObj.getDay() === 0 ? 'color:var(--danger);' : dateObj.getDay() === 6 ? 'color:var(--accent-primary);' : ''}">${d}</div>
-                <div style="height: 12px; display: flex; justify-content: center; gap: 2px; margin-top: 4px;">
-                    ${shiftHtml}
-                </div>
+                <div style="height: 12px; display: flex; justify-content: center; gap: 2px; margin-top: 4px;">${shiftHtml}</div>
             </div>
         `;
     }
-
     container.innerHTML = html;
-
-    if (selectedMyDateStr) {
-        showMyDayDetails(selectedMyDateStr);
-    }
+    if (selectedMyDateStr) showMyDayDetails(selectedMyDateStr);
 }
 
-function prevMyMonth() {
-    currentMyDate.setMonth(currentMyDate.getMonth() - 1);
-    renderMyCalendar();
-}
-
-function nextMyMonth() {
-    currentMyDate.setMonth(currentMyDate.getMonth() + 1);
-    renderMyCalendar();
-}
+function prevMyMonth() { currentMyDate.setMonth(currentMyDate.getMonth() - 1); renderMyCalendar(); }
+function nextMyMonth() { currentMyDate.setMonth(currentMyDate.getMonth() + 1); renderMyCalendar(); }
 
 function showMyDayDetails(dateStr) {
     selectedMyDateStr = dateStr;
-    renderMyCalendar(); // update selection highlight
-
+    renderMyCalendar();
     const detailsDiv = document.getElementById('my-day-details');
     const title = document.getElementById('my-day-details-title');
     const content = document.getElementById('my-day-details-content');
-
     detailsDiv.style.display = 'block';
-
     const [y, m, d] = dateStr.split('-');
     title.textContent = `${y}年 ${parseInt(m)}月 ${parseInt(d)}日の予定`;
 
     let html = '';
-
-    // 確定シフト
-    const dayShifts = allShifts.filter(shift => shift.assigned_user_id === currentUser.id && (shift.dates ? shift.dates.some(x => x.date === dateStr) : shift.date === dateStr));
-
-    dayShifts.forEach(shift => {
+    // 割り当て済みシフト
+    allShifts.forEach(shift => {
+        let isAssigned = false;
         let timeStr = '時間未定';
-        if (shift.dates) {
-            const dateInfo = shift.dates.find(x => x.date === dateStr);
-            if (dateInfo) timeStr = `${dateInfo.startTime} 〜 ${dateInfo.endTime}`;
+
+        if (shift.assignments) {
+            const myA = shift.assignments.find(a => a.user_id === currentUser.id && a.date === dateStr);
+            if (myA) { isAssigned = true; const di = shift.dates?.find(x => x.date === dateStr); if (di) timeStr = `${di.startTime} 〜 ${di.endTime}`; }
         }
-        html += `
-            <div style="background: rgba(255, 255, 255, 0.8); border-left: 4px solid var(--accent-primary); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 12px; color: var(--accent-primary); font-weight: bold; margin-bottom: 4px;">🏢 確定シフト</div>
-                <div style="font-weight: bold; margin-bottom: 4px; font-size: 16px;">${shift.title}</div>
-                <div style="font-size: 13px; color: var(--text-secondary);">⏰ ${timeStr}</div>
-                ${shift.description ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">📝 ${shift.description}</div>` : ''}
-            </div>
-        `;
+        if (shift.assigned_user_id === currentUser.id) {
+            const shiftDates = shift.dates ? shift.dates.map(x => x.date) : [shift.date];
+            if (shiftDates.includes(dateStr)) { isAssigned = true; const di = shift.dates?.find(x => x.date === dateStr); if (di) timeStr = `${di.startTime} 〜 ${di.endTime}`; }
+        }
+
+        if (isAssigned) {
+            html += `
+                <div style="background: rgba(255,255,255,0.8); border-left: 4px solid var(--accent-primary); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="font-size: 12px; color: var(--accent-primary); font-weight: bold; margin-bottom: 4px;">🏢 確定シフト</div>
+                    <div style="font-weight: bold; margin-bottom: 4px; font-size: 16px;">${shift.title}</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">⏰ ${timeStr}</div>
+                </div>
+            `;
+        }
     });
 
-    // 個人の予定
     const daySchedules = mySchedules.filter(s => s.date === dateStr);
     daySchedules.forEach(schedule => {
         html += `
-            <div style="background: rgba(255, 255, 255, 0.8); border-left: 4px solid var(--warning); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: start;">
+            <div style="background: rgba(255,255,255,0.8); border-left: 4px solid var(--warning); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: start;">
                 <div>
-                    <div style="font-size: 12px; color: var(--warning); font-weight: bold; margin-bottom: 4px;">👤 プライベート設定予定</div>
+                    <div style="font-size: 12px; color: var(--warning); font-weight: bold; margin-bottom: 4px;">👤 プライベート予定</div>
                     <div style="font-weight: bold; font-size: 15px;">${schedule.title}</div>
                 </div>
                 <button onclick="deletePersonalSchedule('${schedule.id}')" style="background:none; border:none; color: var(--danger); cursor: pointer; padding: 4px 8px; font-size: 16px;">🗑️</button>
@@ -605,76 +813,46 @@ function showMyDayDetails(dateStr) {
         `;
     });
 
-    if (dayShifts.length === 0 && daySchedules.length === 0) {
-        html = '<div style="color: var(--text-secondary); font-size: 13px; text-align: center; padding: 20px;">予定はありません</div>';
-    }
-
+    if (html === '') html = '<div style="color: var(--text-secondary); font-size: 13px; text-align: center; padding: 20px;">予定はありません</div>';
     content.innerHTML = html;
 }
 
+// ==========================================
+// 9. 個人の予定管理
+// ==========================================
 function openScheduleModal() {
     document.getElementById('schedule-date').value = selectedMyDateStr || '';
     document.getElementById('schedule-title').value = '';
     document.getElementById('schedule-modal').classList.add('active');
 }
-
-function closeScheduleModal() {
-    document.getElementById('schedule-modal').classList.remove('active');
-}
+function closeScheduleModal() { document.getElementById('schedule-modal').classList.remove('active'); }
 
 async function savePersonalSchedule() {
     const date = document.getElementById('schedule-date').value;
     const title = document.getElementById('schedule-title').value;
     if (!date || !title) return alert('全ての項目を入力してください');
-
     try {
-        const res = await fetch('/api/me/schedules', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ date, title })
-        });
-        if (res.ok) {
-            closeScheduleModal();
-            loadAllData(); // Reload schedules
-        } else {
-            alert('保存に失敗しました');
-        }
-    } catch (e) {
-        alert('通信エラーが発生しました');
-    }
+        const res = await fetch('/api/me/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ date, title }) });
+        if (res.ok) { closeScheduleModal(); loadAllData(); } else { alert('保存に失敗しました'); }
+    } catch (e) { alert('通信エラーが発生しました'); }
 }
 
 async function deletePersonalSchedule(id) {
     if (!confirm('予定を削除しますか？')) return;
     try {
         const res = await fetch(`/api/me/schedules/${id}`, { method: 'DELETE', credentials: 'include' });
-        if (res.ok) {
-            loadAllData();
-        }
-    } catch (e) {
-        alert('通信エラーが発生しました');
-    }
+        if (res.ok) loadAllData();
+    } catch (e) { alert('通信エラーが発生しました'); }
 }
 
 // ==========================================
-// 6. ログアウト ＆ モーダル外側クリックで閉じる機能
+// 10. ログアウト ＆ モーダル
 // ==========================================
-
-// ▼ ログアウト機能
 async function logout() {
-    try {
-        await fetch('/api/melogout', { method: 'POST', credentials: 'include' });
-        window.location.href = '/login.html';
-    } catch (error) {
-        window.location.href = '/login.html';
-    }
+    try { await fetch('/api/melogout', { method: 'POST', credentials: 'include' }); } catch (e) { }
+    window.location.href = '/login.html';
 }
 
-// ▼ モーダルの外側（暗い部分）をクリックしたら閉じる
 window.addEventListener('click', (e) => {
-    const scheduleModal = document.getElementById('schedule-modal');
-    if (e.target === scheduleModal) {
-        closeScheduleModal();
-    }
+    if (e.target === document.getElementById('schedule-modal')) closeScheduleModal();
 });

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Shift Studio - 参加</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0fdf4 100%);
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 440px;
+            padding: 36px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 800;
+            text-align: center;
+            color: #0f1419;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #536471;
+            font-size: 13px;
+            margin-bottom: 28px;
+            font-weight: 500;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(0, 186, 124, 0.1);
+            color: #00ba7c;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f1419;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .section-title .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1d9bf0;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            color: #536471;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            background: #fff;
+            border: 1px solid #cfd9de;
+            color: #0f1419;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: #1d9bf0;
+            box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+            outline: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 9999px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-line {
+            background: #06C755;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .btn-line:hover {
+            background: #05b34c;
+        }
+
+        .btn-primary {
+            background: #1d9bf0;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #1a8cd8;
+        }
+
+        .btn-secondary {
+            background: #f7f9fa;
+            color: #0f1419;
+            border: 1px solid #cfd9de;
+        }
+
+        .btn-secondary:hover {
+            background: #eff3f4;
+        }
+
+        .divider {
+            text-align: center;
+            color: #8899a6;
+            font-size: 12px;
+            margin: 20px 0;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 38%;
+            height: 1px;
+            background: #eff3f4;
+        }
+
+        .divider::before {
+            left: 0;
+        }
+
+        .divider::after {
+            right: 0;
+        }
+
+        .tab-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #eff3f4;
+            border-radius: 12px;
+            background: #fff;
+            color: #536471;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            border-color: #1d9bf0;
+            color: #1d9bf0;
+        }
+
+        .tab-btn.active {
+            border-color: #1d9bf0;
+            background: rgba(29, 155, 240, 0.05);
+            color: #1d9bf0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            display: block;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            display: block;
+        }
+
+        .id-display {
+            background: #f7f9fa;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            color: #0f1419;
+            margin: 10px 0;
+        }
+
+        .id-display strong {
+            color: #1d9bf0;
+            font-size: 18px;
+        }
+
+        ::selection {
+            background: rgba(29, 155, 240, 0.15);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="logo">🎯</div>
+        <h1 class="title">Urban Shift Studio</h1>
+        <p class="subtitle">スタッフとして参加する</p>
+        <div style="text-align:center;">
+            <span class="badge">✅ 有効な招待リンクです</span>
+        </div>
+
+        <div id="alert-box"></div>
+
+        <!-- LINE参加 -->
+        <a id="line-join-btn" class="btn btn-line">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <path
+                    d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .346-.282.631-.63.631-.345 0-.627-.285-.627-.631V8.108c0-.27.174-.51.432-.596.064-.021.138-.033.199-.033.201 0 .391.09.51.252l2.443 3.317V8.108c0-.345.282-.63.63-.63.344 0 .627.285.627.63v4.771zm-5.741 0c0 .346-.282.631-.631.631-.345 0-.627-.285-.627-.631V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
+            </svg>
+            LINEで参加する
+        </a>
+
+        <div class="divider">または</div>
+
+        <!-- タブ切り替え -->
+        <div class="tab-group">
+            <button class="tab-btn active" data-tab="register">📝 新規登録して参加</button>
+            <button class="tab-btn" data-tab="login">🔑 既存アカウントで参加</button>
+        </div>
+
+        <!-- 新規登録フォーム -->
+        <div class="tab-content active" id="tab-register">
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="reg-name">お名前（管理者に表示されます）</label>
+                    <input type="text" id="reg-name" class="form-control" placeholder="例：渋谷 太郎" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">パスワード（次回ログイン用）</label>
+                    <input type="password" id="reg-password" class="form-control" placeholder="パスワードを設定" required>
+                </div>
+                <button type="submit" class="btn btn-primary">アカウント作成して参加 →</button>
+            </form>
+        </div>
+
+        <!-- ログインフォーム -->
+        <div class="tab-content" id="tab-login">
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">ユーザーID</label>
+                    <input type="text" id="login-username" class="form-control" placeholder="IDを入力" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">パスワード</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="パスワードを入力" required>
+                </div>
+                <button type="submit" class="btn btn-primary">ログインして参加 →</button>
+            </form>
+        </div>
+
+        <!-- 成功画面 -->
+        <div id="success-view" style="display:none; text-align:center; padding: 20px 0;">
+            <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+            <h2 style="font-size:20px; font-weight:800; color:#0f1419; margin-bottom:8px;">参加完了！</h2>
+            <p style="color:#536471; font-size:13px; margin-bottom:12px;">スタッフとして登録されました</p>
+            <div class="id-display" id="new-user-id" style="display:none;">
+                あなたのIDは <strong id="display-username"></strong> です<br>
+                <span style="font-size:11px; color:#536471;">次回ログイン時に必要です</span>
+            </div>
+            <a href="/staff/index.html" class="btn btn-primary" style="margin-top:16px;">スタッフ画面へ →</a>
+        </div>
+    </div>
+
+    <script>
+        const token = window.location.pathname.split('/join/')[1];
+
+        // LINE参加ボタンのURL設定
+        document.getElementById('line-join-btn').href = `/api/line/login?token=${token}`;
+
+        // タブ切り替え
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+            });
+        });
+
+        function showAlert(msg, type) {
+            const box = document.getElementById('alert-box');
+            box.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+            setTimeout(() => { box.innerHTML = ''; }, 5000);
+        }
+
+        function showSuccess(username) {
+            document.querySelectorAll('.tab-content, .tab-group, .divider, .btn-line').forEach(el => el.style.display = 'none');
+            document.querySelector('.badge').style.display = 'none';
+            const sv = document.getElementById('success-view');
+            sv.style.display = 'block';
+            if (username) {
+                document.getElementById('new-user-id').style.display = 'block';
+                document.getElementById('display-username').textContent = username;
+            }
+        }
+
+        // 新規登録
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const password = document.getElementById('reg-password').value.trim();
+            if (!name || !password) return showAlert('名前とパスワードを入力してください', 'error');
+
+            const btn = e.target.querySelector('button');
+            btn.disabled = true; btn.textContent = '処理中...';
+
+            try {
+                const res = await fetch('/api/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, method: 'register', name, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showSuccess(data.username);
+                } else {
+                    showAlert(data.message || '登録に失敗しました', 'error');
+                    btn.disabled = false; btn.textContent = 'アカウント作成して参加 →';
+                }
+            } catch (err) {
+                showAlert('通信エラーが発生しました', 'error');
+                btn.disabled = false; btn.textContent = 'アカウント作成して参加 →';
+            }
+        });
+
+        // ログイン参加
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            if (!username || !password) return showAlert('IDとパスワードを入力してください', 'error');
+
+            const btn = e.target.querySelector('button');
+            btn.disabled = true; btn.textContent = '処理中...';
+
+            try {
+                const res = await fetch('/api/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, method: 'login', username, password })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    showAlert(data.message || 'ログインに失敗しました', 'error');
+                    btn.disabled = false; btn.textContent = 'ログインして参加 →';
+                }
+            } catch (err) {
+                showAlert('通信エラーが発生しました', 'error');
+                btn.disabled = false; btn.textContent = 'ログインして参加 →';
+            }
+        });
+    </script>
+</body>
+
+</html>
