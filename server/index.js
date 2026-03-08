@@ -718,14 +718,25 @@ app.post('/api/shifts/auto-assign-all', (req, res) => {
 });
 
 app.get('/api/members', (req, res) => {
+    const userId = req.cookies.user_session;
+    if (!userId) return res.json([]);
     const data = readData();
-    const ownerId = getOwnerId(req);
-    let filtered = data.members;
-    if (ownerId) {
-        // 管理者: 自分自身 + 自分のownerId配下のスタッフのみ
+    const currentUser = data.members.find(m => m.id === userId);
+    if (!currentUser) return res.json([]);
+
+    let filtered;
+    if (currentUser.role === 'admin') {
+        // 管理者: 自分自身 + 自分のownerId配下のスタッフのみ（他の管理者は非表示）
         filtered = data.members.filter(m =>
-            m.id === ownerId ||
-            m.ownerId === ownerId
+            m.id === currentUser.id ||
+            (m.ownerId === currentUser.id && m.role !== 'admin')
+        );
+    } else {
+        // スタッフ: 同じownerId配下のメンバーのみ
+        const myOwnerId = currentUser.ownerId;
+        if (!myOwnerId) return res.json([]);
+        filtered = data.members.filter(m =>
+            m.ownerId === myOwnerId || m.id === myOwnerId
         );
     }
     res.json(filtered.map(({ password, ...m }) => m));
