@@ -743,11 +743,11 @@
 
         @media (max-width: 768px) {
             .header {
-                padding: 10px 15px;
+                padding: 8px 12px;
             }
 
             .logo {
-                font-size: 16px;
+                font-size: 14px;
             }
 
             .user-badge {
@@ -758,10 +758,33 @@
             .btn {
                 font-size: 14px;
                 padding: 12px;
+                min-height: 44px;
             }
 
             .container {
-                max-width: 560px;
+                max-width: 100%;
+                padding: 12px 10px;
+            }
+
+            /* ナビタブ */
+            .nav-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                gap: 0 !important;
+                padding: 0 !important;
+            }
+
+            .nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .nav-tabs a,
+            .nav-tabs button {
+                font-size: 12px !important;
+                padding: 8px 12px !important;
+                white-space: nowrap;
+                flex-shrink: 0;
             }
 
             .day-answer-top {
@@ -776,6 +799,55 @@
 
             .day-btn {
                 flex: 1;
+                min-height: 44px;
+                font-size: 13px;
+            }
+
+            /* スロット関連 */
+            .slot-row {
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .slot-time {
+                font-size: 12px;
+            }
+
+            .slot-buttons {
+                width: 100%;
+            }
+
+            .slot-buttons button {
+                min-height: 40px;
+                font-size: 13px;
+            }
+
+            /* カード */
+            .shift-card,
+            .card {
+                padding: 12px !important;
+                border-radius: 12px !important;
+            }
+
+            h2 {
+                font-size: 18px !important;
+            }
+
+            /* テスト用パネル */
+            #test-panel {
+                font-size: 12px;
+            }
+
+            /* 提出ボタン */
+            .submit-section button {
+                font-size: 15px;
+                min-height: 48px;
+            }
+
+            /* コメント */
+            textarea {
+                font-size: 14px !important;
+                min-height: 60px;
             }
         }
 
