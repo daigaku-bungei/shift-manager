@@ -298,25 +298,22 @@ app.get('/api/line/callback', async (req, res) => {
                 username: `@${randomId}`,
                 lineId: lineUser.userId,
                 picture: lineUser.pictureUrl,
-                role: shouldAutoApprove ? 'staff' : 'pending',
+                role: 'staff', // LINE認証なら即スタッフ
                 ownerId: tokenOwnerId || null,
-                joinedVia: shouldAutoApprove ? 'invite_line' : 'line',
+                joinedVia: isValidToken ? 'invite_line' : 'line',
                 joinedAt: new Date().toISOString()
             };
             data.members.push(user);
             writeData(data);
-        } else if (shouldAutoApprove && user.role === 'pending') {
+        } else if (user.role === 'pending') {
+            // 既存pending→staff昇格
             user.role = 'staff';
+            if (tokenOwnerId && !user.ownerId) user.ownerId = tokenOwnerId;
             writeData(data);
         }
 
         res.cookie('user_session', user.id, cookieOpts());
-
-        if (user.role === 'pending') {
-            res.send('<html><body style="font-family:sans-serif;text-align:center;padding:60px;"><h1>✅ 登録完了！</h1><p>管理者にあなたのID「<strong>' + user.username + '</strong>」を伝えて承認してもらってください。</p><a href="/">ログインページへ</a></body></html>');
-        } else {
-            res.redirect('/staff/index.html');
-        }
+        res.redirect('/staff/index.html');
     } catch (err) { res.status(500).send('LINE連携失敗'); }
 });
 
