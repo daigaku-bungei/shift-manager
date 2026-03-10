@@ -552,11 +552,12 @@ async function loadMembers() {
         const response = await fetch('/api/members', { credentials: 'include' });
         let allMembers = await response.json();
 
-        // クライアント側フィルタ: 自分 + 自分のownerId配下のスタッフのみ
+        // クライアント側フィルタ: 自分 + 自分のownerId配下 + ownerId未設定のスタッフ
         if (currentUser && currentUser.id) {
             allMembers = allMembers.filter(m =>
                 m.id === currentUser.id ||
-                (m.ownerId === currentUser.id && m.role !== 'admin')
+                (m.ownerId === currentUser.id && m.role !== 'admin') ||
+                (m.role === 'staff' && !m.ownerId)
             );
         }
         members = allMembers;

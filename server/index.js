@@ -716,10 +716,11 @@ app.get('/api/members', (req, res) => {
 
     let filtered;
     if (currentUser.role === 'admin') {
-        // 管理者: 自分自身 + 自分のownerId配下のスタッフのみ（他の管理者は非表示）
+        // 管理者: 自分自身 + 自分のownerId配下 + ownerId未設定のスタッフ（LINE直接登録等）
         filtered = data.members.filter(m =>
             m.id === currentUser.id ||
-            (m.ownerId === currentUser.id && m.role !== 'admin')
+            (m.ownerId === currentUser.id && m.role !== 'admin') ||
+            (m.role === 'staff' && !m.ownerId)
         );
     } else {
         // スタッフ: 同じownerId配下のメンバーのみ
