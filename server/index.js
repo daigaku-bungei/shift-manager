@@ -233,16 +233,12 @@ app.post('/api/join', (req, res) => {
 // 2. LINEログイン（★招待トークン連携対応）
 // ==========================================
 app.get('/api/line/login', (req, res) => {
-    const state = crypto.randomBytes(20).toString('hex');
-    res.cookie('line_state', state, { httpOnly: true });
-
-    // 招待リンク or 招待トークン経由の場合
-    if (req.query.invite === 'true') {
-        res.cookie('invite_flag', 'true', { maxAge: 1800000, httpOnly: true });
-    }
-    if (req.query.token) {
-        res.cookie('invite_token', req.query.token, { maxAge: 1800000, httpOnly: true });
-    }
+    const randomState = crypto.randomBytes(20).toString('hex');
+    // stateにinvite情報を埋め込む（cookieはOAuth中に失われる可能性があるため）
+    const inviteToken = req.query.token || '';
+    const inviteFlag = req.query.invite === 'true' ? '1' : '0';
+    const state = `${randomState}__${inviteFlag}__${inviteToken}`;
+    res.cookie('line_state_key', randomState, { httpOnly: true });
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
@@ -253,7 +249,9 @@ app.get('/api/line/login', (req, res) => {
 
 app.get('/api/line/callback', async (req, res) => {
     const { code, state } = req.query;
-    if (state !== req.cookies.line_state) return res.status(400).send('不正アクセス');
+    // stateからinvite情報を抽出
+    const [stateKey, inviteFlag, inviteToken] = (state || '').split('__');
+    if (stateKey !== req.cookies.line_state_key) return res.status(400).send('不正アクセス');
 
     try {
         const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -272,13 +270,8 @@ app.get('/api/line/callback', async (req, res) => {
 
         let user = data.members.find(m => m.lineId === lineUser.userId);
 
-        // 招待チェック: invite_flag または invite_token
-        const isInvite = req.cookies.invite_flag === 'true';
-        const inviteToken = req.cookies.invite_token;
-        res.clearCookie('invite_flag');
-        res.clearCookie('invite_token');
-
-        // トークンが有効か確認 + ownerIdを取得
+        // stateから招待情報を取得
+        const isInvite = inviteFlag === '1';
         let isValidToken = false;
         let tokenOwnerId = null;
         if (inviteToken && data.invites) {

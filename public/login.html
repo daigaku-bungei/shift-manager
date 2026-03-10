@@ -473,7 +473,6 @@
             });
             const data = await res.json();
             if (res.ok || data.success) {
-              alert(`🎉 アカウント作成成功！\n\nあなたのIDは「 ${generatedUserId} 」です。\n次回ログイン時に必要なのでメモしてください。`);
               window.location.href = currentRole === 'admin' ? '/admin/index.html' : '/staff/index.html';
             } else {
               alert(data.error || data.message || '登録に失敗しました');
