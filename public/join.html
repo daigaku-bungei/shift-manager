@@ -404,7 +404,7 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    showSuccess(data.username);
+                    window.location.href = data.redirectUrl || '/staff/index.html';
                 } else {
                     showAlert(data.message || '登録に失敗しました', 'error');
                     btn.disabled = false; btn.textContent = 'アカウント作成して参加 →';
