@@ -230,30 +230,56 @@ app.post('/api/join', (req, res) => {
 });
 
 // ==========================================
-// 2. LINEログイン（★招待トークン連携対応）
+// 2. LINEログイン（★ state に admin_id を埋め込む方式）
 // ==========================================
-app.get('/api/line/login', (req, res) => {
-    const randomState = crypto.randomBytes(20).toString('hex');
-    // stateにinvite情報を埋め込む（cookieはOAuth中に失われる可能性があるため）
-    const inviteToken = req.query.token || '';
-    const inviteFlag = req.query.invite === 'true' ? '1' : '0';
-    const state = `${randomState}__${inviteFlag}__${inviteToken}`;
-    res.cookie('line_state_key', randomState, { httpOnly: true });
 
+// 【フロント→バックエンド遷移】
+// 招待リンク例: /api/line/login?admin_id=123
+// join.html例:  /api/line/login?token=abc123  （トークンからadmin_idを自動解決）
+// 直接LINE例:   /api/line/login              （admin_idなし→ownerId=null）
+app.get('/api/line/login', (req, res) => {
+    // ① CSRF対策用のランダム文字列を生成
+    const csrfKey = crypto.randomBytes(20).toString('hex');
+    res.cookie('line_csrf', csrfKey, { httpOnly: true, maxAge: 600000 }); // 10分有効
+
+    // ② admin_id を決定: クエリから直接 or 招待トークンから逆引き
+    let adminId = req.query.admin_id || '';
+    if (!adminId && req.query.token) {
+        const data = readData();
+        if (data.invites) {
+            const invite = data.invites.find(inv => inv.token === req.query.token && new Date(inv.expiresAt) > new Date());
+            if (invite) adminId = invite.ownerId || '';
+        }
+    }
+
+    // ③ state = "CSRFキー__admin_id" の形式で組み立て
+    const state = `${csrfKey}__${adminId}`;
+
+    // ④ LINE認証URLを組み立ててリダイレクト
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.get('host');
     const callbackUrl = `${protocol}://${host}/api/line/callback`;
-    const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${state}&scope=profile%20openid%20email&bot_prompt=normal`;
+    const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${encodeURIComponent(state)}&scope=profile%20openid%20email&bot_prompt=normal`;
     res.redirect(lineAuthUrl);
 });
 
+// 【コールバック】LINE認証後にここに戻ってくる
 app.get('/api/line/callback', async (req, res) => {
     const { code, state } = req.query;
-    // stateからinvite情報を抽出
-    const [stateKey, inviteFlag, inviteToken] = (state || '').split('__');
-    if (stateKey !== req.cookies.line_state_key) return res.status(400).send('不正アクセス');
+
+    // ① stateを分解: "CSRFキー__admin_id"
+    const parts = (state || '').split('__');
+    const csrfKey = parts[0] || '';
+    const adminId = parts[1] || '';  // ← ここで admin_id を復元！
+
+    // ② CSRF検証（cookieに保存したキーと一致するか）
+    if (csrfKey !== req.cookies.line_csrf) {
+        return res.status(400).send('不正アクセス（CSRF検証失敗）');
+    }
+    res.clearCookie('line_csrf');
 
     try {
+        // ③ LINEアクセストークン取得
         const protocol = req.headers['x-forwarded-proto'] || req.protocol;
         const host = req.get('host');
         const callbackUrl = `${protocol}://${host}/api/line/callback`;
@@ -261,6 +287,7 @@ app.get('/api/line/callback', async (req, res) => {
             grant_type: 'authorization_code', code, redirect_uri: callbackUrl, client_id: LINE_CLIENT_ID, client_secret: LINE_CLIENT_SECRET
         }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
 
+        // ④ LINEプロフィール取得
         const profileRes = await axios.get('https://api.line.me/v2/profile', {
             headers: { Authorization: `Bearer ${tokenRes.data.access_token}` }
         });
@@ -268,46 +295,46 @@ app.get('/api/line/callback', async (req, res) => {
         const lineUser = profileRes.data;
         const data = readData();
 
+        // ⑤ 既存ユーザー検索（LINE ID が一致するか）
         let user = data.members.find(m => m.lineId === lineUser.userId);
 
-        // stateから招待情報を取得
-        const isInvite = inviteFlag === '1';
-        let isValidToken = false;
-        let tokenOwnerId = null;
-        if (inviteToken && data.invites) {
-            const foundInvite = data.invites.find(inv => inv.token === inviteToken && new Date(inv.expiresAt) > new Date());
-            if (foundInvite) {
-                isValidToken = true;
-                tokenOwnerId = foundInvite.ownerId;
-            }
-        }
-        const shouldAutoApprove = isInvite || isValidToken;
-
+        // ⑥ 新規ユーザー作成 or 既存ユーザー更新
         if (!user) {
             const randomId = Math.random().toString(36).substring(2, 8);
             user = {
                 id: Date.now().toString(),
-                name: lineUser.displayName,
+                name: lineUser.displayName,        // LINEの表示名を自動反映
                 username: `@${randomId}`,
                 lineId: lineUser.userId,
-                picture: lineUser.pictureUrl,
-                role: 'staff', // LINE認証なら即スタッフ
-                ownerId: tokenOwnerId || null,
-                joinedVia: isValidToken ? 'invite_line' : 'line',
+                picture: lineUser.pictureUrl || '',
+                role: 'staff',                      // LINE認証は即スタッフ
+                ownerId: adminId || null,            // ★ stateから復元した admin_id をセット！
+                joinedVia: adminId ? 'invite_line' : 'line',
                 joinedAt: new Date().toISOString()
             };
             data.members.push(user);
             writeData(data);
-        } else if (user.role === 'pending') {
-            // 既存pending→staff昇格
-            user.role = 'staff';
-            if (tokenOwnerId && !user.ownerId) user.ownerId = tokenOwnerId;
-            writeData(data);
+        } else {
+            // 既存ユーザー: ownerId未設定なら今回のadmin_idで更新
+            let updated = false;
+            if (adminId && !user.ownerId) {
+                user.ownerId = adminId;
+                updated = true;
+            }
+            if (user.role === 'pending') {
+                user.role = 'staff';
+                updated = true;
+            }
+            if (updated) writeData(data);
         }
 
+        // ⑦ ログインセッション設定 → スタッフ画面へ
         res.cookie('user_session', user.id, cookieOpts());
         res.redirect('/staff/index.html');
-    } catch (err) { res.status(500).send('LINE連携失敗'); }
+    } catch (err) {
+        console.error('LINE連携エラー:', err.message);
+        res.status(500).send('LINE連携に失敗しました。もう一度お試しください。');
+    }
 });
 
 // ==========================================
