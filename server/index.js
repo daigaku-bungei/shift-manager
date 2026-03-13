@@ -617,115 +617,130 @@ app.post('/api/shifts/auto-assign-all', (req, res) => {
     myShifts.forEach(shift => {
         if (!shift.dates || shift.dates.length === 0) return;
 
-        const requiredCount = parseInt(shift.required_staff_count) || 1;
+        const totalRequired = parseInt(shift.required_staff_count) || 1;
         const interval = parseInt(shift.slotInterval) || 30;
         const shiftResponses = (data.responses || []).filter(r => r.shiftId === shift.id || r.shift_id === shift.id);
         if (!shift.assignments) shift.assignments = [];
+
+        // ポジション定義（未設定なら「全体」として後方互換）
+        const positions = (shift.positions && shift.positions.length > 0)
+            ? shift.positions
+            : [{ name: '全体', count: totalRequired }];
 
         shift.dates.forEach(dateInfo => {
             const dateStr = dateInfo.date;
             const timeSlots = generateTimeSlots(dateInfo.startTime, dateInfo.endTime, interval);
 
             timeSlots.forEach(slotKey => {
-                // このスロットに既に必要人数分 割り当て済みなら飛ばす
-                const currentAssigned = shift.assignments.filter(a => a.date === dateStr && a.slot === slotKey);
-                const needed = requiredCount - currentAssigned.length;
-                if (needed <= 0) return;
+                // ポジションごとにループ
+                positions.forEach(pos => {
+                    const posName = pos.name;
+                    const posRequired = pos.count;
 
-                // スロットの開始・終了時間
-                const [slotStart, slotEnd] = slotKey.split('-');
-                const slotStartMin = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
-                const slotEndMin = parseInt(slotEnd.split(':')[0]) * 60 + parseInt(slotEnd.split(':')[1]);
+                    // このスロット＋ポジションに既に割り当て済みの人数
+                    const currentAssigned = shift.assignments.filter(a =>
+                        a.date === dateStr && a.slot === slotKey && (a.position || '全体') === posName
+                    );
+                    const needed = posRequired - currentAssigned.length;
+                    if (needed <= 0) return;
 
-                // 候補者を評価
-                let candidates = myStaff
-                    .map(member => {
-                        if (currentAssigned.some(a => a.user_id === member.id)) return null;
+                    // スロットの開始・終了時間
+                    const [slotStart, slotEnd] = slotKey.split('-');
+                    const slotStartMin = parseInt(slotStart.split(':')[0]) * 60 + parseInt(slotStart.split(':')[1]);
+                    const slotEndMin = parseInt(slotEnd.split(':')[0]) * 60 + parseInt(slotEnd.split(':')[1]);
 
-                        const userResponse = shiftResponses.find(r => r.userId === member.id || r.user_id === member.id);
-                        if (!userResponse || !userResponse.dailyResponses) return null;
+                    // このスロットに（全ポジション合計で）既に割り当て済みの人
+                    const allSlotAssigned = shift.assignments.filter(a => a.date === dateStr && a.slot === slotKey);
+                    const allAssignedIds = allSlotAssigned.map(a => a.user_id);
 
-                        const daily = userResponse.dailyResponses.find(dr => dr.date === dateStr);
-                        if (!daily) return null;
-                        if (daily.status === 'unavailable') return null;
+                    // 候補者を評価
+                    let candidates = myStaff
+                        .map(member => {
+                            if (allAssignedIds.includes(member.id)) return null;
 
-                        // スロットレベルのチェック
-                        let canWorkSlot = false;
-                        if (daily.status === 'available') {
-                            canWorkSlot = true; // 全コマOK
-                        } else if (daily.status === 'partial') {
-                            // 個別スロットをチェック
-                            if (daily.slots) {
-                                // スロットインデックスから判定
-                                const dateSlots = generateTimeSlots(dateInfo.startTime, dateInfo.endTime, interval);
-                                const slotIdx = dateSlots.indexOf(slotKey);
-                                if (slotIdx >= 0 && daily.slots[slotIdx] && daily.slots[slotIdx].status === 'available') {
-                                    canWorkSlot = true;
+                            const userResponse = shiftResponses.find(r => r.userId === member.id || r.user_id === member.id);
+                            if (!userResponse || !userResponse.dailyResponses) return null;
+
+                            const daily = userResponse.dailyResponses.find(dr => dr.date === dateStr);
+                            if (!daily) return null;
+                            if (daily.status === 'unavailable') return null;
+
+                            let canWorkSlot = false;
+                            if (daily.status === 'available') {
+                                canWorkSlot = true;
+                            } else if (daily.status === 'partial') {
+                                if (daily.slots) {
+                                    const dateSlots = generateTimeSlots(dateInfo.startTime, dateInfo.endTime, interval);
+                                    const slotIdx = dateSlots.indexOf(slotKey);
+                                    if (slotIdx >= 0 && daily.slots[slotIdx] && daily.slots[slotIdx].status === 'available') {
+                                        canWorkSlot = true;
+                                    }
+                                }
+                                if (daily.startTime && daily.endTime) {
+                                    const userStartMin = parseInt(daily.startTime.split(':')[0]) * 60 + parseInt(daily.startTime.split(':')[1]);
+                                    const userEndMin = parseInt(daily.endTime.split(':')[0]) * 60 + parseInt(daily.endTime.split(':')[1]);
+                                    if (slotStartMin >= userStartMin && slotEndMin <= userEndMin) {
+                                        canWorkSlot = true;
+                                    }
                                 }
                             }
-                            // 時間指定モードの場合
-                            if (daily.startTime && daily.endTime) {
-                                const userStartMin = parseInt(daily.startTime.split(':')[0]) * 60 + parseInt(daily.startTime.split(':')[1]);
-                                const userEndMin = parseInt(daily.endTime.split(':')[0]) * 60 + parseInt(daily.endTime.split(':')[1]);
-                                if (slotStartMin >= userStartMin && slotEndMin <= userEndMin) {
-                                    canWorkSlot = true;
-                                }
+                            if (!canWorkSlot) return null;
+
+                            let score = 0;
+                            const currentCount = memberSlotCounts[member.id] || 0;
+                            score -= currentCount * 10;
+
+                            if (shift.allow_preferred_count && userResponse.preferredCount) {
+                                const preferred = parseInt(userResponse.preferredCount);
+                                const dayCount = shift.assignments.filter(a => a.user_id === member.id).length;
+                                if (dayCount < preferred * timeSlots.length / shift.dates.length) score += 200;
+                                else score -= 150;
                             }
-                        }
-                        if (!canWorkSlot) return null;
 
-                        // スコア計算（公平分散）
-                        let score = 0;
-                        const currentCount = memberSlotCounts[member.id] || 0;
-                        score -= currentCount * 10; // スロット数ベースで均等化
+                            score += Math.random() * 5;
 
-                        if (shift.allow_preferred_count && userResponse.preferredCount) {
-                            const preferred = parseInt(userResponse.preferredCount);
-                            const dayCount = shift.assignments.filter(a => a.user_id === member.id).length;
-                            if (dayCount < preferred * timeSlots.length / shift.dates.length) score += 200;
-                            else score -= 150;
-                        }
+                            if (data.pairings) {
+                                const workingNow = allSlotAssigned.map(a => a.user_id);
+                                data.pairings.forEach(rule => {
+                                    const isM1 = rule.member1_id === member.id;
+                                    const isM2 = rule.member2_id === member.id;
+                                    if (!isM1 && !isM2) return;
+                                    const otherId = isM1 ? rule.member2_id : rule.member1_id;
+                                    if (workingNow.includes(otherId)) {
+                                        if (rule.type === 'pair') score += 80;
+                                        if (rule.type === 'anti_pair') score -= 500;
+                                    }
+                                });
+                            }
 
-                        score += Math.random() * 5; // ランダムシャッフル
+                            return { memberId: member.id, memberName: member.name, score };
+                        })
+                        .filter(c => c !== null);
 
-                        // 相性ルール
-                        if (data.pairings) {
-                            const workingNow = shift.assignments.filter(a => a.date === dateStr && a.slot === slotKey).map(a => a.user_id);
-                            data.pairings.forEach(rule => {
-                                const isM1 = rule.member1_id === member.id;
-                                const isM2 = rule.member2_id === member.id;
-                                if (!isM1 && !isM2) return;
-                                const otherId = isM1 ? rule.member2_id : rule.member1_id;
-                                if (workingNow.includes(otherId)) {
-                                    if (rule.type === 'pair') score += 80;
-                                    if (rule.type === 'anti_pair') score -= 500;
-                                }
-                            });
-                        }
+                    candidates.sort((a, b) => b.score - a.score);
+                    const winners = candidates.slice(0, needed);
 
-                        return { memberId: member.id, memberName: member.name, score };
-                    })
-                    .filter(c => c !== null);
-
-                candidates.sort((a, b) => b.score - a.score);
-                const winners = candidates.slice(0, needed);
-
-                winners.forEach(winner => {
-                    shift.assignments.push({
-                        date: dateStr,
-                        slot: slotKey,
-                        user_id: winner.memberId,
-                        assignedAt: new Date().toISOString()
+                    winners.forEach(winner => {
+                        shift.assignments.push({
+                            date: dateStr,
+                            slot: slotKey,
+                            position: posName,  // ★ ポジション情報を保存
+                            user_id: winner.memberId,
+                            assignedAt: new Date().toISOString()
+                        });
+                        memberSlotCounts[winner.memberId] = (memberSlotCounts[winner.memberId] || 0) + 1;
+                        assignedCount++;
+                        assignmentDetails.push({
+                            shiftTitle: shift.title,
+                            date: dateStr,
+                            slot: slotKey,
+                            position: posName,
+                            memberName: winner.memberName
+                        });
+                        // 同じスロットの他のポジションで重複しないようにallAssignedIdsを更新
+                        allAssignedIds.push(winner.memberId);
                     });
-                    memberSlotCounts[winner.memberId] = (memberSlotCounts[winner.memberId] || 0) + 1;
-                    assignedCount++;
-                    assignmentDetails.push({
-                        shiftTitle: shift.title,
-                        date: dateStr,
-                        slot: slotKey,
-                        memberName: winner.memberName
-                    });
-                });
+                }); // positions
             });
         });
     });

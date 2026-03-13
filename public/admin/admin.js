@@ -224,10 +224,15 @@ async function loadShifts() {
                         else if (isShort) bg = 'rgba(251,191,36,0.08)';
                         else if (isFull) bg = 'rgba(16,185,129,0.06)';
                         let cellContent = '';
+                        const posColors = { 'ホール': 'rgba(59,130,246,0.12)', 'キッチン': 'rgba(245,158,11,0.12)' };
+                        const posTextColors = { 'ホール': '#3b82f6', 'キッチン': '#f59e0b' };
                         allAssigned.forEach(a => {
                             const mn = staffMembers.find(m => m.id === a.user_id)?.name || '?';
-                            cellContent += `<div style="display:inline-flex;align-items:center;gap:4px;margin:2px 3px;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(29,155,240,0.1);color:#1d9bf0;border:1px solid rgba(29,155,240,0.18);white-space:nowrap;">
-                                        ${mn}
+                            const posLabel = a.position && a.position !== '全体' ? `<span style="font-size:9px;opacity:0.8;margin-left:2px;">[${a.position}]</span>` : '';
+                            const badgeBg = (a.position && posColors[a.position]) || 'rgba(29,155,240,0.1)';
+                            const badgeColor = (a.position && posTextColors[a.position]) || '#1d9bf0';
+                            cellContent += `<div style="display:inline-flex;align-items:center;gap:4px;margin:2px 3px;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor}22;white-space:nowrap;">
+                                        ${mn}${posLabel}
                                         <button onclick="unassignSlot('${shift.id}','${a.user_id}','${d.date}','${slotKey}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:11px;padding:0 1px;opacity:0.6;" title="解除">✕</button>
                                     </div>`;
                         });
@@ -941,12 +946,49 @@ let dragMode = 'select';
 function openAddMemberModal() { document.getElementById('add-member-modal').classList.add('active'); }
 function closeAddMemberModal() { closeModal('add-member-modal'); }
 
+// ポジション行追加
+function addPositionRow() {
+    const container = document.getElementById('positions-container');
+    const row = document.createElement('div');
+    row.className = 'position-row';
+    row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 6px;';
+    row.innerHTML = `
+        <input type="text" class="form-control position-name" placeholder="ポジション名（例: キッチン）" value="" style="flex: 1;">
+        <input type="number" class="form-control position-count" value="1" min="1" max="20" style="width: 70px;">
+        <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">名</span>
+        <button type="button" onclick="this.closest('.position-row').remove()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
+    `;
+    container.appendChild(row);
+}
+
+// ポジションデータ取得
+function getPositionsData() {
+    const rows = document.querySelectorAll('#positions-container .position-row');
+    const positions = [];
+    rows.forEach(row => {
+        const name = row.querySelector('.position-name').value.trim() || '全体';
+        const count = parseInt(row.querySelector('.position-count').value) || 1;
+        positions.push({ name, count });
+    });
+    return positions.length > 0 ? positions : [{ name: '全体', count: 1 }];
+}
+
 function openCreateShiftModal() {
     document.getElementById('create-shift-modal').classList.add('active');
     selectedDates.clear();
     currentDate = new Date();
     renderCalendar();
     updateSelectedDatesList();
+    // ポジション入力をリセット
+    const container = document.getElementById('positions-container');
+    container.innerHTML = `
+        <div class="position-row" style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+            <input type="text" class="form-control position-name" placeholder="ポジション名（例: ホール）" value="" style="flex: 1;">
+            <input type="number" class="form-control position-count" value="1" min="1" max="20" style="width: 70px;">
+            <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">名</span>
+            <button type="button" onclick="this.closest('.position-row').remove()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
+        </div>
+    `;
 }
 
 function closeModal(modalId) {
@@ -1224,6 +1266,9 @@ async function createComplexShift() {
 
     const dates = Array.from(selectedDates.values());
 
+    const positions = getPositionsData();
+    const totalStaffCount = positions.reduce((sum, p) => sum + p.count, 0);
+
     const newShiftData = {
         title: title,
         description: description,
@@ -1232,7 +1277,8 @@ async function createComplexShift() {
         deadline: deadline,
         dates: dates,
         required_skill_level: 1,
-        required_staff_count: parseInt(document.getElementById('required-staff-count').value) || 1,
+        required_staff_count: totalStaffCount,
+        positions: positions,
         allow_preferred_count: document.getElementById('allow-preferred-count').checked
     };
 
