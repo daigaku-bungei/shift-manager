@@ -171,6 +171,7 @@ function selectShiftForSubmission(shiftId) {
     slotResponses = {};
     expandedDateIdx = null;
     submissionMode = 'slot';
+    window._selectedPositions = []; // ポジション希望リセット
 
     // 初期値: 全日程・全スロットを✕（行けない）で埋める
     if (currentSelectedShift && currentSelectedShift.dates) {
@@ -215,6 +216,28 @@ function renderShiftSubmitAll() {
             ${currentSelectedShift.description ? `📝 ${currentSelectedShift.description}` : ''}
             ${currentSelectedShift.deadline ? ` | ⏰ ${deadlineInfo.text}` : ''}
         </div>`;
+    }
+
+    // ポジション希望（シフトにpositionsが設定されている場合のみ表示）
+    const shiftPositions = currentSelectedShift.positions || [];
+    const hasPositions = shiftPositions.length > 0 && !(shiftPositions.length === 1 && shiftPositions[0].name === '全体');
+    if (hasPositions) {
+        html += `
+            <div style="margin-bottom: 14px; padding: 12px; background: rgba(29,155,240,0.05); border: 1px solid rgba(29,155,240,0.15); border-radius: 12px;">
+                <div style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">🏷️ 希望ポジション</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    ${shiftPositions.map((p, pi) => {
+            const isSelected = (window._selectedPositions || []).includes(p.name);
+            return `<button onclick="togglePositionPref(${pi}, '${p.name}')" 
+                            class="position-pref-btn" 
+                            style="padding: 6px 14px; border-radius: 9999px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: 1.5px solid ${isSelected ? '#1d9bf0' : '#cfd9de'}; background: ${isSelected ? 'rgba(29,155,240,0.1)' : 'white'}; color: ${isSelected ? '#1d9bf0' : 'var(--text-secondary)'};">
+                            ${isSelected ? '✓ ' : ''}${p.name}（${p.count}名）
+                        </button>`;
+        }).join('')}
+                </div>
+                <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">タップして希望するポジションを選んでください（複数選択可）</p>
+            </div>
+        `;
     }
 
     // モード切替タブ
@@ -474,6 +497,18 @@ function bulkClearTime() {
 // ==========================================
 // 6. 提出
 // ==========================================
+// ポジション希望の切り替え
+function togglePositionPref(index, posName) {
+    if (!window._selectedPositions) window._selectedPositions = [];
+    const idx = window._selectedPositions.indexOf(posName);
+    if (idx >= 0) {
+        window._selectedPositions.splice(idx, 1);
+    } else {
+        window._selectedPositions.push(posName);
+    }
+    renderCurrentShift(); // UIを再描画
+}
+
 async function submitShiftData() {
     if (!currentSelectedShift) return;
     const dates = currentSelectedShift.dates;
@@ -517,6 +552,7 @@ async function submitShiftData() {
         userName: currentUser.name,
         comment: commentEl ? commentEl.value : '',
         preferredCount: preferredEl ? (preferredEl.value || null) : null,
+        positionPreferences: window._selectedPositions || [],
         dailyResponses,
         submittedAt: new Date().toISOString()
     };
