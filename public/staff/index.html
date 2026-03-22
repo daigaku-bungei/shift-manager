@@ -905,42 +905,14 @@
 
         <section id="my-shifts-section" class="section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="margin: 0; font-size: 20px;">📅 マイカレンダー</h2>
+                <h2 style="margin: 0; font-size: 20px;">📋 確定シフト一覧</h2>
                 <button class="btn btn-primary"
                     style="padding: 8px 12px; font-size: 13px; width: auto; font-weight: bold; border-radius: 8px;"
                     onclick="openScheduleModal()">+ 予定を追加</button>
             </div>
 
-            <div class="card" style="padding: 15px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <button onclick="prevMyMonth()"
-                        style="background: none; border: none; font-size: 18px; color: #1d9bf0; cursor: pointer; font-weight: bold;">◀</button>
-                    <div id="my-calendar-month-year"
-                        style="font-size: 18px; font-weight: 800; color: var(--text-primary);">2023年 10月</div>
-                    <button onclick="nextMyMonth()"
-                        style="background: none; border: none; font-size: 18px; color: #1d9bf0; cursor: pointer; font-weight: bold;">▶</button>
-                </div>
-
-                <div
-                    style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-bottom: 10px;">
-                    <div style="font-size: 12px; font-weight: bold; color: var(--danger);">日</div>
-                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">月</div>
-                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">火</div>
-                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">水</div>
-                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">木</div>
-                    <div style="font-size: 12px; font-weight: bold; color: var(--text-secondary);">金</div>
-                    <div style="font-size: 12px; font-weight: bold; color: #1d9bf0;">土</div>
-                </div>
-
-                <div id="my-calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
-                </div>
-            </div>
-
-            <!-- 選んだ日の詳細を表示する領域 -->
-            <div id="my-day-details"
-                style="display: none; padding: 15px; background: rgba(29, 155, 240, 0.04); border: 1px solid rgba(29, 155, 240, 0.15); border-radius: 16px; margin-bottom: 20px;">
-                <h4 id="my-day-details-title" style="margin-bottom: 10px; font-size: 15px; color: #1d9bf0;"></h4>
-                <div id="my-day-details-content"></div>
+            <div id="confirmed-shift-list">
+                <!-- JSで動的に生成 -->
             </div>
         </section>
         <section id="mypage-section" class="section">

@@ -192,7 +192,7 @@ async function loadShifts() {
                     const isSun = dateObj.getDay() === 0;
                     const isSat = dateObj.getDay() === 6;
                     const colColor = isSun ? 'color:#ef4444;' : isSat ? 'color:#3b82f6;' : '';
-                    return `<th style="padding:10px 14px;border-right:1px solid var(--border-color);min-width:150px;text-align:center;${colColor}">
+                    return `<th style="padding:10px 14px;border-right:1px solid var(--border-color);min-width:200px;text-align:center;${colColor}">
                                     <div style="font-size:15px;font-weight:800;letter-spacing:0.5px;">${dateObj.getMonth() + 1}/${dateObj.getDate()}</div>
                                     <div style="font-size:10px;color:#94a3b8;font-weight:600;margin-top:2px;">(${dn}) ${d.startTime}~${d.endTime}</div>
                                 </th>`;
@@ -224,31 +224,67 @@ async function loadShifts() {
                         else if (isShort) bg = 'rgba(251,191,36,0.08)';
                         else if (isFull) bg = 'rgba(16,185,129,0.06)';
                         let cellContent = '';
-                        const posColors = { 'ホール': 'rgba(59,130,246,0.12)', 'キッチン': 'rgba(245,158,11,0.12)' };
-                        const posTextColors = { 'ホール': '#3b82f6', 'キッチン': '#f59e0b' };
+                        // ポジション定義があるかチェック
+                        const shiftPositions = (shift.positions && shift.positions.length > 0) ? shift.positions : null;
+                        // ポジション用の色パレット（動的に割り振り）
+                        const posColorPalette = [
+                            { bg: 'rgba(59,130,246,0.12)', text: '#3b82f6' },
+                            { bg: 'rgba(245,158,11,0.12)', text: '#f59e0b' },
+                            { bg: 'rgba(16,185,129,0.12)', text: '#10b981' },
+                            { bg: 'rgba(139,92,246,0.12)', text: '#8b5cf6' },
+                            { bg: 'rgba(236,72,153,0.12)', text: '#ec4899' },
+                            { bg: 'rgba(29,155,240,0.1)', text: '#1d9bf0' }
+                        ];
+                        const getPosColor = (posName) => {
+                            if (!shiftPositions) return { bg: 'rgba(29,155,240,0.1)', text: '#1d9bf0' };
+                            const idx = shiftPositions.findIndex(p => p.name === posName);
+                            return posColorPalette[idx >= 0 ? idx % posColorPalette.length : posColorPalette.length - 1];
+                        };
                         allAssigned.forEach(a => {
                             const mn = staffMembers.find(m => m.id === a.user_id)?.name || '?';
-                            const posLabel = a.position && a.position !== '全体' ? `<span style="font-size:9px;opacity:0.8;margin-left:2px;">[${a.position}]</span>` : '';
-                            const badgeBg = (a.position && posColors[a.position]) || 'rgba(29,155,240,0.1)';
-                            const badgeColor = (a.position && posTextColors[a.position]) || '#1d9bf0';
-                            cellContent += `<div style="display:inline-flex;align-items:center;gap:4px;margin:2px 3px;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor}22;white-space:nowrap;">
-                                        ${mn}${posLabel}
-                                        <button onclick="unassignSlot('${shift.id}','${a.user_id}','${d.date}','${slotKey}')" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:11px;padding:0 1px;opacity:0.6;" title="解除">✕</button>
+                            const posLabel = a.position && a.position !== '全体' ? `<span style="font-size:10px;opacity:0.8;margin-left:3px;">[${a.position}]</span>` : '';
+                            const pColor = getPosColor(a.position);
+                            cellContent += `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:3px 0;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;background:${pColor.bg};color:${pColor.text};border:1px solid ${pColor.text}22;">
+                                        <span>${mn}${posLabel}</span>
+                                        <button onclick="unassignSlot('${shift.id}','${a.user_id}','${d.date}','${slotKey}')" style="background:rgba(239,68,68,0.1);border:none;cursor:pointer;color:#ef4444;font-size:12px;padding:2px 6px;border-radius:4px;font-weight:700;" title="解除">✕</button>
                                     </div>`;
                         });
-                        if (isShort) {
+                        // ポジション別の不足表示＆追加UI
+                        if (shiftPositions) {
+                            const assignedIds = allAssigned.map(a => a.user_id);
+                            const cands = staffMembers.filter(m => !assignedIds.includes(m.id));
+                            shiftPositions.forEach((pos, pi) => {
+                                const posAssigned = allAssigned.filter(a => (a.position || '全体') === pos.name);
+                                const posNeeded = pos.count - posAssigned.length;
+                                const pColor = posColorPalette[pi % posColorPalette.length];
+                                if (posNeeded > 0) {
+                                    cellContent += `<div style="margin-top:5px;padding:5px 8px;border-radius:8px;background:${pColor.bg};border:1px dashed ${pColor.text}55;">`;
+                                    cellContent += `<div style="font-size:11px;color:${pColor.text};font-weight:800;margin-bottom:4px;">${pos.name} <span style='background:${pColor.text};color:white;font-size:10px;padding:1px 6px;border-radius:9999px;'>あと${posNeeded}名</span></div>`;
+                                    if (cands.length > 0) {
+                                        const escapedPos = pos.name.replace(/'/g, "\\'");
+                                        cellContent += `<select onchange="if(this.value)assignSlot('${shift.id}',this.value,'${d.date}','${slotKey}','${escapedPos}')" style="padding:4px 6px;font-size:12px;border:1px solid ${pColor.text}44;border-radius:6px;width:100%;background:white;cursor:pointer;color:#334155;font-weight:600;">
+                                            <option value="">+ スタッフを追加</option>
+                                            ${cands.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                        </select>`;
+                                    }
+                                    cellContent += `</div>`;
+                                }
+                            });
+                        } else if (isShort) {
                             const needed = requiredCount - allAssigned.length;
-                            cellContent += `<div style="margin-top:3px;font-size:11px;color:#ef4444;font-weight:700;letter-spacing:0.3px;">⚠ あと${needed}人</div>`;
+                            cellContent += `<div style="margin-top:5px;padding:5px 8px;border-radius:8px;background:rgba(239,68,68,0.06);border:1px dashed rgba(239,68,68,0.3);">`;
+                            cellContent += `<div style="font-size:11px;color:#ef4444;font-weight:800;margin-bottom:4px;">未割当 <span style='background:#ef4444;color:white;font-size:10px;padding:1px 6px;border-radius:9999px;'>あと${needed}名</span></div>`;
                             const assignedIds = allAssigned.map(a => a.user_id);
                             const cands = staffMembers.filter(m => !assignedIds.includes(m.id));
                             if (cands.length > 0) {
-                                cellContent += `<select onchange="if(this.value)assignSlot('${shift.id}',this.value,'${d.date}','${slotKey}')" style="margin-top:3px;padding:3px 4px;font-size:11px;border:1px solid #e2e8f0;border-radius:6px;width:100%;background:white;cursor:pointer;color:#64748b;">
-                                            <option value="">+ スタッフ追加...</option>
+                                cellContent += `<select onchange="if(this.value)assignSlot('${shift.id}',this.value,'${d.date}','${slotKey}')" style="padding:4px 6px;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;width:100%;background:white;cursor:pointer;color:#334155;font-weight:600;">
+                                            <option value="">+ スタッフを追加</option>
                                             ${cands.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
                                         </select>`;
                             }
+                            cellContent += `</div>`;
                         }
-                        return `<td style="padding:6px 8px;border-right:1px solid #e2e8f0;background:${bg};vertical-align:top;text-align:center;min-height:44px;">${cellContent || '<span style="opacity:0.12;font-size:11px;">—</span>'}</td>`;
+                        return `<td style="padding:8px 10px;border-right:1px solid #e2e8f0;background:${bg};vertical-align:top;min-height:50px;">${cellContent || '<span style="opacity:0.12;font-size:11px;">—</span>'}</td>`;
                     }).join('')}
                         </tr>`;
                 }).join('')}
@@ -269,10 +305,12 @@ async function loadShifts() {
     }
 }
 
-// スロット単位の手動割り当て
-async function assignSlot(shiftId, userId, date, slot) {
+// スロット単位の手動割り当て（ポジション対応）
+async function assignSlot(shiftId, userId, date, slot, position) {
     try {
-        const res = await fetch(`/api/shifts/${shiftId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ user_id: userId, date, slot }) });
+        const body = { user_id: userId, date, slot };
+        if (position) body.position = position;
+        const res = await fetch(`/api/shifts/${shiftId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
         if (res.ok) { showAlert('割り当てました！', 'success'); loadShifts(); } else { showAlert('割り当てに失敗しました', 'error'); }
     } catch (e) { showAlert('通信エラー', 'error'); }
 }
@@ -576,7 +614,7 @@ async function loadMembers() {
         tbody.innerHTML = members.map(member => `
             <tr>
                 <td>${member.name}</td>
-                <td style="color: var(--text-secondary); font-size: 14px;">${member.id}</td>
+                <td style="color: var(--text-secondary); font-size: 14px;">${member.username || member.id}</td>
                 <td>
                     <select class="form-control" style="width: auto; display: inline-block; padding: 4px 8px; font-size: 13px;" onchange="updateMemberSkill('${member.id}', this.value)">
                         <option value="1" ${member.skill_level == 1 ? 'selected' : ''}>Lv1 (初心者)</option>
@@ -586,7 +624,9 @@ async function loadMembers() {
                         <option value="5" ${member.skill_level == 5 ? 'selected' : ''}>Lv5 (上級者)</option>
                     </select>
                 </td>
-                <td style="color: var(--text-secondary); font-size: 14px;">${member.group || '-'}</td>
+                <td>
+                    <span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:12px;font-weight:700;background:${member.group ? 'rgba(29,155,240,0.1)' : 'var(--bg-tertiary)'};color:${member.group ? 'var(--accent-primary)' : 'var(--text-secondary)'};">${member.group || '未設定'}</span>
+                </td>
                 <td>
                     <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; margin-right: 5px;" onclick="openEditMemberModal('${member.id}')">編集</button>
                     ${member.role !== 'admin' ? `<button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="deleteMember('${member.id}')">削除</button>` : ''}
@@ -795,7 +835,7 @@ function setupForms() {
     }
 }
 
-// 回答状況読み込み（日別の◯△✕対応版！）
+// 回答状況読み込み（アコーディオン型 — コンパクト一覧 + タップで詳細展開）
 async function loadResponses() {
     try {
         const response = await fetch('/api/responses', { credentials: 'include' });
@@ -808,19 +848,44 @@ async function loadResponses() {
             return;
         }
 
-        container.innerHTML = shifts.map(shift => {
-            // 新しいデータ形式 (shiftId) に対応して回答を探す
+        // スタイル注入（1回だけ）
+        if (!document.getElementById('resp-accordion-styles')) {
+            const style = document.createElement('style');
+            style.id = 'resp-accordion-styles';
+            style.textContent = `
+                .resp-row { display:flex; align-items:center; gap:6px; padding:12px 16px; border-bottom:1px solid #f0f2f5; cursor:pointer; transition:background 0.15s; user-select:none; }
+                .resp-row:hover { background:#f8fafc; }
+                .resp-row:active { background:#f1f5f9; }
+                .resp-row-avatar { width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1d9bf0,#60a5fa);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0; }
+                .resp-row-name { font-weight:700;font-size:14px;color:var(--text-primary);min-width:70px;flex-shrink:0; }
+                .resp-row-badges { display:flex;gap:4px;flex:1;flex-wrap:wrap;justify-content:center; }
+                .resp-badge { display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;border-radius:6px;font-size:11px;font-weight:800;flex-shrink:0;padding:0 4px; }
+                .resp-badge-available { background:rgba(16,185,129,0.15);color:#059669; }
+                .resp-badge-partial { background:rgba(245,158,11,0.15);color:#d97706; }
+                .resp-badge-unavailable { background:rgba(239,68,68,0.12);color:#dc2626; }
+                .resp-badge-none { background:#f1f5f9;color:#cbd5e1; }
+                .resp-row-status { font-size:11px;font-weight:700;padding:3px 10px;border-radius:9999px;flex-shrink:0; }
+                .resp-row-chevron { font-size:14px;color:#94a3b8;transition:transform 0.25s;flex-shrink:0;margin-left:4px; }
+                .resp-row.expanded .resp-row-chevron { transform:rotate(180deg); }
+                .resp-detail { max-height:0;overflow:hidden;transition:max-height 0.35s ease,opacity 0.25s ease;opacity:0;background:#fafbfc;border-bottom:1px solid #f0f2f5; }
+                .resp-detail.open { max-height:2000px;opacity:1; }
+                .resp-detail-inner { padding:16px 20px 20px; }
+                .resp-day-detail { margin-bottom:12px;padding:12px 16px;border-radius:12px;border:1.5px solid transparent; }
+                .resp-day-detail-available { background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.2); }
+                .resp-day-detail-partial { background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2); }
+                .resp-day-detail-unavailable { background:rgba(239,68,68,0.04);border-color:rgba(239,68,68,0.15); }
+                .resp-time-tag { display:inline-block;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;margin:3px 4px 3px 0; }
+                .resp-comment-box { margin-top:10px;padding:10px 14px;background:rgba(59,130,246,0.06);border-radius:10px;border-left:4px solid #3b82f6; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        container.innerHTML = shifts.map((shift, shiftIdx) => {
             const shiftResponses = responses.filter(r => r.shiftId === shift.id || r.shift_id === shift.id);
+            const staffMembers = members.filter(m => m.role === 'staff');
+            const respondedIds = shiftResponses.map(r => r.userId || r.user_id);
+            const noResponseStaff = staffMembers.filter(m => !respondedIds.includes(m.id));
 
-            if (shiftResponses.length === 0) {
-                return `
-                <div class="card">
-                    <h2 style="margin-bottom: 8px;">${shift.title}</h2>
-                    <p style="color: var(--text-secondary);">まだ回答がありません</p>
-                </div>`;
-            }
-
-            // 日付列の抽出
             let dateCols = [];
             if (shift.dates && shift.dates.length > 0) {
                 dateCols = shift.dates.map(d => d.date);
@@ -828,62 +893,285 @@ async function loadResponses() {
                 dateCols = [shift.date];
             }
 
-            // スタッフ一覧を取得（回答マトリックスの行になる）
-            const staffMembers = members.filter(m => m.role === 'staff');
+            const dayNames = ['日','月','火','水','木','金','土'];
 
-            let matrixHtml = `
-            <div style="overflow-x: auto; margin-top: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; white-space: nowrap;">
-                    <thead>
-                        <tr style="background: var(--bg-tertiary); border-bottom: 2px solid var(--border-color);">
-                            <th style="padding: 10px; border-right: 1px solid var(--border-color); text-align: left; position: sticky; left: 0; background: var(--bg-tertiary); z-index: 2;">スタッフ</th>
-                            ${dateCols.map(d => `<th style="padding: 10px; border-right: 1px solid var(--border-color); min-width: 60px;">${formatDate(d)}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            staffMembers.forEach(member => {
-                const userResponse = shiftResponses.find(r => r.userId === member.id || r.user_id === member.id);
-
-                matrixHtml += `<tr style="border-bottom: 1px solid var(--border-color);">`;
-                matrixHtml += `<td style="padding: 10px; border-right: 1px solid var(--border-color); text-align: left; font-weight: bold; position: sticky; left: 0; background: var(--bg-secondary); z-index: 1;">${member.name}</td>`;
-
-                dateCols.forEach(date => {
-                    let cellContent = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>'; // 未回答
-                    let bgColor = '';
-                    if (userResponse && userResponse.dailyResponses) {
-                        const dayResp = userResponse.dailyResponses.find(dr => dr.date === date);
-                        if (dayResp) {
-                            if (dayResp.status === 'available') {
-                                cellContent = '◎';
-                                bgColor = 'background: rgba(16, 185, 129, 0.1); color: var(--success); font-weight: bold; font-size: 16px;';
-                            } else if (dayResp.status === 'partial') {
-                                cellContent = `<div style="line-height: 1.2;">△<br><span style="font-size: 10px;">${dayResp.startTime}-${dayResp.endTime}</span></div>`;
-                                bgColor = 'background: rgba(245, 158, 11, 0.1); color: var(--warning); font-weight: bold;';
-                            } else if (dayResp.status === 'unavailable') {
-                                cellContent = '✕';
-                                bgColor = 'background: rgba(239, 68, 68, 0.1); color: var(--danger); font-weight: bold; font-size: 14px;';
-                            }
-                        }
+            const extractAvailableRanges = (slots) => {
+                if (!slots || slots.length === 0) return [];
+                const ranges = [];
+                let rangeStart = null, rangeEnd = null;
+                slots.forEach(s => {
+                    if (s.status === 'available') {
+                        if (!rangeStart) { rangeStart = s.start; rangeEnd = s.end; }
+                        else { rangeEnd = s.end; }
+                    } else {
+                        if (rangeStart) { ranges.push({ start: rangeStart, end: rangeEnd }); rangeStart = null; rangeEnd = null; }
                     }
-                    matrixHtml += `<td style="padding: 10px; border-right: 1px solid var(--border-color); ${bgColor}">${cellContent}</td>`;
                 });
-                matrixHtml += `</tr>`;
+                if (rangeStart) ranges.push({ start: rangeStart, end: rangeEnd });
+                return ranges;
+            };
+
+            // 回答率
+            const responseRate = staffMembers.length > 0 ? Math.round(shiftResponses.length / staffMembers.length * 100) : 0;
+            const rateColor = responseRate >= 100 ? 'var(--success)' : responseRate >= 50 ? 'var(--warning)' : 'var(--danger)';
+
+            // 日別サマリー
+            const daySummaries = {};
+            dateCols.forEach(date => {
+                daySummaries[date] = { available: 0, partial: 0, unavailable: 0, noAnswer: 0 };
+                staffMembers.forEach(member => {
+                    const ur = shiftResponses.find(r => (r.userId === member.id || r.user_id === member.id));
+                    if (!ur || !ur.dailyResponses) { daySummaries[date].noAnswer++; return; }
+                    const dr = ur.dailyResponses.find(d => d.date === date);
+                    if (!dr) { daySummaries[date].noAnswer++; return; }
+                    if (dr.status === 'available') daySummaries[date].available++;
+                    else if (dr.status === 'partial') daySummaries[date].partial++;
+                    else if (dr.status === 'unavailable') daySummaries[date].unavailable++;
+                    else daySummaries[date].noAnswer++;
+                });
             });
 
-            matrixHtml += `
-                    </tbody>
-                </table>
+            // 日付ヘッダー（テーブルヘッダー的に横並び）
+            let dateHeaderHtml = `<div style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:var(--bg-tertiary);border-bottom:2px solid var(--border-color);border-radius:12px 12px 0 0;">
+                <div style="min-width:34px;"></div>
+                <div style="min-width:70px;font-size:12px;font-weight:700;color:var(--text-secondary);">スタッフ</div>
+                <div class="resp-row-badges" style="flex:1;">
+                    ${dateCols.map(d => {
+                        const dateObj = new Date(d);
+                        const dn = dayNames[dateObj.getDay()];
+                        const isSun = dateObj.getDay() === 0;
+                        const isSat = dateObj.getDay() === 6;
+                        const colColor = isSun ? '#ef4444' : isSat ? '#3b82f6' : 'var(--text-secondary)';
+                        return `<div style="width:38px;text-align:center;flex-shrink:0;">
+                            <div style="font-weight:800;font-size:12px;color:${colColor};line-height:1.2;">${dateObj.getMonth()+1}/${dateObj.getDate()}</div>
+                            <div style="font-size:10px;color:#94a3b8;font-weight:600;">${dn}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+                <div style="width:70px;text-align:center;font-size:11px;font-weight:700;color:var(--text-secondary);">状態</div>
+                <div style="width:18px;"></div>
             </div>`;
 
-            return `
-                <div class="card" style="padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; font-size: 18px; font-weight: bold;">${shift.title}</h2>
-                        <span style="font-size: 13px; color: var(--text-secondary); font-weight: bold; background: var(--bg-tertiary); padding: 4px 10px; border-radius: 20px;">回答率: ${shiftResponses.length}/${staffMembers.length}</span>
+            // スタッフ行（アコーディオン）
+            const sortedStaff = [...staffMembers].sort((a, b) => {
+                const aR = shiftResponses.find(r => (r.userId === a.id || r.user_id === a.id));
+                const bR = shiftResponses.find(r => (r.userId === b.id || r.user_id === b.id));
+                if (aR && !bR) return -1;
+                if (!aR && bR) return 1;
+                if (!aR && !bR) return 0;
+                return new Date(aR.submittedAt || 0) - new Date(bR.submittedAt || 0);
+            });
+
+            let staffRowsHtml = sortedStaff.map((member, memberIdx) => {
+                const userResponse = shiftResponses.find(r => (r.userId === member.id || r.user_id === member.id));
+                const hasResponse = !!userResponse;
+                const rowId = `resp-row-${shiftIdx}-${memberIdx}`;
+
+                // --- サマリー行：日別テキストバッジ ---
+                let dayBadgesHtml = dateCols.map(date => {
+                    if (!userResponse || !userResponse.dailyResponses) {
+                        return `<div class="resp-badge resp-badge-none" title="未回答">—</div>`;
+                    }
+                    const dayResp = userResponse.dailyResponses.find(dr => dr.date === date);
+                    if (!dayResp) return `<div class="resp-badge resp-badge-none" title="未入力">—</div>`;
+                    if (dayResp.status === 'available') return `<div class="resp-badge resp-badge-available" title="出勤OK">OK</div>`;
+                    if (dayResp.status === 'partial') return `<div class="resp-badge resp-badge-partial" title="一部OK">一部</div>`;
+                    if (dayResp.status === 'unavailable') return `<div class="resp-badge resp-badge-unavailable" title="不可">NG</div>`;
+                    return `<div class="resp-badge resp-badge-none">—</div>`;
+                }).join('');
+
+                const statusHtml = hasResponse
+                    ? `<div class="resp-row-status" style="background:rgba(16,185,129,0.12);color:#059669;">回答済</div>`
+                    : `<div class="resp-row-status" style="background:rgba(244,33,46,0.1);color:#ef4444;">未回答</div>`;
+
+                const rowBg = !hasResponse ? 'background:rgba(244,33,46,0.02);' : '';
+
+                // --- 展開詳細 ---
+                let detailHtml = '';
+                if (hasResponse && userResponse.dailyResponses) {
+                    let dayDetails = dateCols.map(date => {
+                        const dateObj = new Date(date);
+                        const dn = dayNames[dateObj.getDay()];
+                        const isSun = dateObj.getDay() === 0;
+                        const isSat = dateObj.getDay() === 6;
+                        const dayColor = isSun ? '#ef4444' : isSat ? '#3b82f6' : 'var(--text-primary)';
+                        const dayResp = userResponse.dailyResponses.find(dr => dr.date === date);
+
+                        if (!dayResp) {
+                            return `<div class="resp-day-detail" style="background:#fafbfc;border-color:#e8ecf0;">
+                                <span style="font-weight:800;font-size:14px;color:${dayColor};">${dateObj.getMonth()+1}/${dateObj.getDate()} (${dn})</span>
+                                <span style="color:#b0b8c1;margin-left:12px;font-size:13px;">未入力</span>
+                            </div>`;
+                        }
+
+                        let className = '', statusLabel = '', statusIconTxt = '';
+                        let timeContent = '';
+
+                        if (dayResp.status === 'available') {
+                            className = 'resp-day-detail-available';
+                            statusIconTxt = `<span style="display:inline-block;padding:2px 10px;border-radius:6px;font-weight:800;font-size:13px;background:rgba(16,185,129,0.15);color:#059669;margin-left:8px;">出勤OK</span>`;
+
+                            const ranges = extractAvailableRanges(dayResp.slots);
+                            if (ranges.length > 0) {
+                                timeContent += `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">` +
+                                    ranges.map(r => `<span class="resp-time-tag" style="background:rgba(16,185,129,0.12);color:#047857;border:1px solid rgba(16,185,129,0.2);">🕐 ${r.start}〜${r.end}</span>`).join('') +
+                                    `</div>`;
+                            }
+
+                        } else if (dayResp.status === 'partial') {
+                            className = 'resp-day-detail-partial';
+                            const ranges = extractAvailableRanges(dayResp.slots);
+                            const avail = dayResp.slots ? dayResp.slots.filter(s => s.status === 'available').length : 0;
+                            const total = dayResp.slots ? dayResp.slots.length : 0;
+                            statusIconTxt = `<span style="display:inline-block;padding:2px 10px;border-radius:6px;font-weight:800;font-size:13px;background:rgba(245,158,11,0.15);color:#d97706;margin-left:8px;">一部OK</span>`;
+
+                            if (ranges.length > 0) {
+                                timeContent += `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">` +
+                                    ranges.map(r => `<span class="resp-time-tag" style="background:rgba(245,158,11,0.12);color:#92400e;border:1px solid rgba(245,158,11,0.2);">🕐 ${r.start}〜${r.end}</span>`).join('') +
+                                    `</div>`;
+                            }
+                            if (total > 0) {
+                                timeContent += `<div style="font-size:12px;color:#78716c;font-weight:600;margin-top:6px;">${avail}/${total} コマ出勤可</div>`;
+                            }
+
+                        } else {
+                            className = 'resp-day-detail-unavailable';
+                            statusIconTxt = `<span style="display:inline-block;padding:2px 10px;border-radius:6px;font-weight:800;font-size:13px;background:rgba(239,68,68,0.12);color:#dc2626;margin-left:8px;">出勤NG</span>`;
+                        }
+
+                        return `<div class="resp-day-detail ${className}">
+                            <div style="display:flex;align-items:center;">
+                                <span style="font-weight:800;font-size:14px;color:${dayColor};min-width:80px;">${dateObj.getMonth()+1}/${dateObj.getDate()} (${dn})</span>
+                                ${statusIconTxt}
+                            </div>
+                            ${timeContent}
+                        </div>`;
+                    }).join('');
+
+                    // コメント
+                    let commentHtml = '';
+                    if (userResponse.comment && userResponse.comment !== '[テスト自動生成]') {
+                        commentHtml = `<div class="resp-comment-box">
+                            <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:3px;">💬 コメント</div>
+                            <div style="font-size:13px;color:#1e3a5f;line-height:1.5;">${userResponse.comment}</div>
+                        </div>`;
+                    }
+
+                    // 提出日時
+                    let subText = '';
+                    if (userResponse.submittedAt) {
+                        const sd = new Date(userResponse.submittedAt);
+                        subText = `<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">📅 ${sd.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })} に提出</div>`;
+                    }
+
+                    // ポジション希望（シフトの全ポジション表示 + スタッフの希望をハイライト）
+                    let positionHtml = '';
+                    const shiftPositions = (shift.positions && shift.positions.length > 0) ? shift.positions : null;
+                    const staffPrefs = userResponse.positionPrefs || [];
+                    if (shiftPositions && !(shiftPositions.length === 1 && shiftPositions[0].name === '全体')) {
+                        const posColorPalette = ['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ec4899','#1d9bf0'];
+                        positionHtml = `<div style="margin-bottom:12px;padding:10px 14px;background:#fefce8;border-radius:10px;border:1px solid #fef3c7;">
+                            <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;">🏷️ 希望ポジション</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                ${shiftPositions.map((pos, pi) => {
+                                    const isPreferred = staffPrefs.includes(pos.name);
+                                    const color = posColorPalette[pi % posColorPalette.length];
+                                    if (isPreferred) {
+                                        return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:8px;font-size:13px;font-weight:800;background:${color}22;color:${color};border:2px solid ${color};">✓ ${pos.name}</span>`;
+                                    } else {
+                                        return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:8px;font-size:13px;font-weight:600;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;text-decoration:line-through;">${pos.name}</span>`;
+                                    }
+                                }).join('')}
+                            </div>
+                        </div>`;
+                    } else if (staffPrefs.length > 0) {
+                        positionHtml = `<div style="margin-bottom:12px;padding:10px 14px;background:#fefce8;border-radius:10px;border:1px solid #fef3c7;">
+                            <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;">🏷️ 希望ポジション</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                ${staffPrefs.map(p => `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:8px;font-size:13px;font-weight:800;background:rgba(59,130,246,0.12);color:#3b82f6;border:2px solid #3b82f6;">✓ ${p}</span>`).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    detailHtml = `<div class="resp-detail" id="detail-${rowId}">
+                        <div class="resp-detail-inner">
+                            ${subText}
+                            ${positionHtml}
+                            ${dayDetails}
+                            ${commentHtml}
+                        </div>
+                    </div>`;
+                } else {
+                    detailHtml = `<div class="resp-detail" id="detail-${rowId}">
+                        <div class="resp-detail-inner">
+                            <div style="text-align:center;color:#b0b8c1;font-size:13px;padding:10px 0;">まだ回答していません</div>
+                        </div>
+                    </div>`;
+                }
+
+                return `<div class="resp-row" id="${rowId}" onclick="toggleResponseDetail('${rowId}')" style="${rowBg}">
+                    <div class="resp-row-avatar">${member.name.charAt(0)}</div>
+                    <div class="resp-row-name">${member.name}</div>
+                    <div class="resp-row-badges">${dayBadgesHtml}</div>
+                    ${statusHtml}
+                    <div class="resp-row-chevron">▼</div>
+                </div>
+                ${detailHtml}`;
+            }).join('');
+
+            // 日別集計サマリー
+            let daySummaryHtml = `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;background:var(--bg-tertiary);border-radius:0 0 12px 12px;border-top:1px solid var(--border-color);">
+                <div style="font-weight:800;font-size:12px;color:var(--text-secondary);width:100%;margin-bottom:2px;">📊 集計</div>`;
+            dateCols.forEach(date => {
+                const dateObj = new Date(date);
+                const dn = dayNames[dateObj.getDay()];
+                const s = daySummaries[date];
+                daySummaryHtml += `<div style="flex:1;min-width:100px;background:white;border-radius:8px;padding:8px 10px;border:1px solid var(--border-color);">
+                    <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${dateObj.getMonth()+1}/${dateObj.getDate()} <span style="font-size:10px;color:#94a3b8;">(${dn})</span></div>
+                    <div style="display:flex;gap:6px;font-size:10px;font-weight:700;">
+                        <span style="color:#059669;">OK ${s.available}</span>
+                        <span style="color:#d97706;">一部 ${s.partial}</span>
+                        <span style="color:#dc2626;">NG ${s.unavailable}</span>
+                        ${s.noAnswer > 0 ? `<span style="color:#94a3b8;">未${s.noAnswer}</span>` : ''}
                     </div>
-                    ${matrixHtml}
+                </div>`;
+            });
+            daySummaryHtml += `</div>`;
+
+            // 未回答者
+            let noRespHtml = '';
+            if (noResponseStaff.length > 0) {
+                noRespHtml = `<div style="margin-top:12px;padding:12px 16px;background:rgba(244,33,46,0.04);border:1.5px solid rgba(244,33,46,0.15);border-radius:12px;">
+                    <div style="font-size:12px;font-weight:700;color:var(--danger);margin-bottom:6px;">⚠️ 未回答 (${noResponseStaff.length}名)</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                        ${noResponseStaff.map(m => `<span style="padding:3px 10px;border-radius:9999px;font-size:12px;font-weight:600;background:rgba(244,33,46,0.08);color:var(--danger);border:1px solid rgba(244,33,46,0.15);">${m.name}</span>`).join('')}
+                    </div>
+                </div>`;
+            }
+
+            return `
+                <div class="card" style="padding:0;margin-bottom:20px;overflow:hidden;">
+                    <div style="padding:18px 20px;border-bottom:1px solid var(--border-color);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                            <h2 style="margin:0;font-size:18px;font-weight:900;">${shift.title}</h2>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <span style="font-size:13px;font-weight:bold;padding:4px 12px;border-radius:20px;background:${responseRate >= 100 ? 'rgba(0,186,124,0.1)' : 'rgba(244,33,46,0.08)'};color:${rateColor};">
+                                    回答率: ${shiftResponses.length}/${staffMembers.length} (${responseRate}%)
+                                </span>
+                                ${shift.deadline ? (() => {
+                                    const dl = new Date(shift.deadline);
+                                    const isExpired = dl < new Date();
+                                    return `<span style="font-size:11px;padding:3px 8px;border-radius:6px;font-weight:700;${isExpired ? 'background:#fee2e2;color:#ef4444;' : 'background:#fffbeb;color:#d97706;'}">
+                                        ⏰ ${dl.toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'numeric', minute:'numeric' })} ${isExpired ? '(締切済)' : ''}
+                                    </span>`;
+                                })() : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${dateHeaderHtml}
+                    ${staffRowsHtml}
+                    ${daySummaryHtml}
+                    <div style="padding:0 16px 16px;">${noRespHtml}</div>
                 </div>
             `;
         }).join('');
@@ -891,6 +1179,15 @@ async function loadResponses() {
         console.error('回答の読み込みに失敗:', error);
         showAlert('回答の読み込みに失敗しました', 'error');
     }
+}
+
+// アコーディオン開閉
+function toggleResponseDetail(rowId) {
+    const row = document.getElementById(rowId);
+    const detail = document.getElementById('detail-' + rowId);
+    if (!row || !detail) return;
+    row.classList.toggle('expanded');
+    detail.classList.toggle('open');
 }
 
 // 分析読み込み（高機能版を復元！）
@@ -1533,4 +1830,112 @@ async function saveEditShift() {
         console.error('シフト更新エラー:', error);
         showAlert('シフト更新に失敗しました', 'error');
     }
+}
+
+// ==========================================
+// スタッフ詳細モーダル
+// ==========================================
+function showStaffDetail(memberId) {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+
+    let html = `
+    <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px;" id="staff-detail-modal" onclick="if(event.target===this)this.remove()">
+        <div style="background:white;border-radius:16px;width:100%;max-width:700px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15);" onclick="event.stopPropagation()">
+            <div style="padding:20px 24px;border-bottom:1px solid #eff3f4;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:1;border-radius:16px 16px 0 0;">
+                <div>
+                    <h2 style="font-size:20px;font-weight:800;margin:0;">${member.name}</h2>
+                    <span style="font-size:12px;color:#536471;">${member.group ? member.group + ' · ' : ''}全シフト別の出勤可否</span>
+                </div>
+                <button onclick="document.getElementById('staff-detail-modal').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#536471;padding:4px 8px;">✕</button>
+            </div>
+            <div style="padding:20px 24px;">`;
+    // 各シフトごとに表示
+    shifts.forEach(shift => {
+        if (!shift.dates || shift.dates.length === 0) return;
+        const shiftResponses = responses.filter(r => r.shiftId === shift.id || r.shift_id === shift.id);
+        const userResponse = shiftResponses.find(r => (r.userId === memberId || r.user_id === memberId));
+
+        html += `<div style="margin-bottom:20px;border:1px solid #eff3f4;border-radius:12px;overflow:hidden;">`;
+        html += `<div style="padding:12px 16px;background:var(--bg-tertiary);font-weight:800;font-size:15px;border-bottom:1px solid #eff3f4;display:flex;justify-content:space-between;align-items:center;">
+            <span>📋 ${shift.title}</span>
+            ${userResponse ? '<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(16,185,129,0.1);color:#059669;font-weight:700;">回答済</span>' : '<span style="font-size:11px;padding:2px 8px;border-radius:6px;background:rgba(239,68,68,0.1);color:#ef4444;font-weight:700;">未回答</span>'}
+        </div>`;
+
+        if (!userResponse || !userResponse.dailyResponses) {
+            html += `<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">回答データがありません</div>`;
+            html += `</div>`;
+            return;
+        }
+
+        const interval = parseInt(shift.slotInterval) || 60;
+        const dayNames = ['日','月','火','水','木','金','土'];
+
+        shift.dates.forEach(dateInfo => {
+            const dayResp = userResponse.dailyResponses.find(dr => dr.date === dateInfo.date);
+            const dateObj = new Date(dateInfo.date);
+            const dayOfWeek = dayNames[dateObj.getDay()];
+            const isSun = dateObj.getDay() === 0;
+            const isSat = dateObj.getDay() === 6;
+            const dayColor = isSun ? 'color:#ef4444;' : isSat ? 'color:#3b82f6;' : '';
+
+            let statusBadge = '<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;background:#f1f5f9;color:#94a3b8;">未入力</span>';
+            let slotsHtml = '';
+
+            if (dayResp) {
+                if (dayResp.status === 'available') {
+                    statusBadge = '<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:800;background:rgba(16,185,129,0.15);color:#059669;">✅ 全コマ出勤可</span>';
+                    // 全スロット可能を表示
+                    if (dayResp.slots && dayResp.slots.length > 0) {
+                        slotsHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">' +
+                            dayResp.slots.map(s => `<span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;background:rgba(16,185,129,0.1);color:#059669;">${s.start}~${s.end}</span>`).join('') +
+                            '</div>';
+                    }
+                } else if (dayResp.status === 'partial') {
+                    const availSlots = dayResp.slots ? dayResp.slots.filter(s => s.status === 'available') : [];
+                    const totalSlots = dayResp.slots ? dayResp.slots.length : 0;
+                    statusBadge = `<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:800;background:rgba(245,158,11,0.15);color:#d97706;">⚡ 一部可 (${availSlots.length}/${totalSlots})</span>`;
+                    if (dayResp.slots && dayResp.slots.length > 0) {
+                        slotsHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">' +
+                            dayResp.slots.map(s => {
+                                const isAvail = s.status === 'available';
+                                return `<span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;${isAvail ? 'background:rgba(16,185,129,0.12);color:#059669;border:1px solid rgba(16,185,129,0.3);' : 'background:#f8fafc;color:#cbd5e1;border:1px solid #e2e8f0;text-decoration:line-through;'}">${s.start}~${s.end}</span>`;
+                            }).join('') +
+                            '</div>';
+                    }
+                } else if (dayResp.status === 'unavailable') {
+                    statusBadge = '<span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:800;background:rgba(239,68,68,0.12);color:#dc2626;">❌ 出勤不可</span>';
+                }
+            }
+
+            html += `
+            <div style="padding:10px 16px;border-bottom:1px solid #f1f5f9;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-weight:800;font-size:14px;${dayColor}">${dateObj.getMonth()+1}/${dateObj.getDate()}(${dayOfWeek})</span>
+                        <span style="font-size:11px;color:#94a3b8;">${dateInfo.startTime}〜${dateInfo.endTime}</span>
+                    </div>
+                    ${statusBadge}
+                </div>
+                ${slotsHtml}
+            </div>`;
+        });
+
+        // ポジション希望表示
+        if (userResponse.positionPrefs && userResponse.positionPrefs.length > 0) {
+            html += `<div style="padding:8px 16px;background:#fefce8;border-top:1px solid #fef3c7;font-size:12px;">
+                🏷️ 希望ポジション: ${userResponse.positionPrefs.map(p => `<strong>${p}</strong>`).join(', ')}
+            </div>`;
+        }
+
+        html += `</div>`;
+    });
+
+    html += `</div></div></div>`;
+
+    // 既存のモーダルがあれば削除
+    const existing = document.getElementById('staff-detail-modal');
+    if (existing) existing.remove();
+
+    document.body.insertAdjacentHTML('beforeend', html);
 }

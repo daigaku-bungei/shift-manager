@@ -506,7 +506,7 @@ function togglePositionPref(index, posName) {
     } else {
         window._selectedPositions.push(posName);
     }
-    renderCurrentShift(); // UIを再描画
+    renderShiftSubmitAll(); // UIを再描画
 }
 
 async function submitShiftData() {
@@ -740,65 +740,133 @@ let selectedMyDateStr = null;
 
 function renderMyCalendar() {
     if (!currentUser) return;
-    const year = currentMyDate.getFullYear();
-    const month = currentMyDate.getMonth();
-    document.getElementById('my-calendar-month-year').textContent = `${year}年 ${month + 1}月`;
+    const container = document.getElementById('confirmed-shift-list');
+    if (!container) return;
 
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startPadding = firstDay.getDay();
-    const daysInMonth = lastDay.getDate();
-    const container = document.getElementById('my-calendar-days');
-    let html = '';
+    // 全シフトから自分の割り当てを抽出
+    const myAssignments = [];
+    allShifts.forEach(shift => {
+        if (shift.assignments) {
+            shift.assignments.forEach(a => {
+                if (a.user_id === currentUser.id) {
+                    const dateInfo = shift.dates?.find(x => x.date === a.date);
+                    // 同日の仲間
+                    const colleagues = shift.assignments
+                        .filter(c => c.date === a.date && c.user_id !== currentUser.id)
+                        .map(c => {
+                            const m = allMembers.find(mm => mm.id === c.user_id);
+                            return { name: m?.name || '?', position: c.position };
+                        });
+                    myAssignments.push({
+                        shiftTitle: shift.title || '名称未設定',
+                        date: a.date,
+                        slot: a.slot,
+                        position: a.position,
+                        startTime: dateInfo?.startTime,
+                        endTime: dateInfo?.endTime,
+                        colleagues
+                    });
+                }
+            });
+        }
+    });
 
-    for (let i = 0; i < startPadding; i++) {
-        html += `<div style="padding: 10px; background: rgba(0,0,0,0.02); border-radius: 8px;"></div>`;
+    // 日付順ソート
+    myAssignments.sort((a, b) => a.date.localeCompare(b.date) || (a.slot || '').localeCompare(b.slot || ''));
+
+    if (myAssignments.length === 0) {
+        container.innerHTML = '<div class="empty-state">確定されたシフトはまだありません 📭</div>';
+        return;
     }
 
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateObj = new Date(year, month, d);
-        const y = dateObj.getFullYear();
-        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const dStr = String(dateObj.getDate()).padStart(2, '0');
-        const currentDateStr = `${y}-${m}-${dStr}`;
+    // 日付ごとにグループ化
+    const grouped = {};
+    myAssignments.forEach(a => {
+        if (!grouped[a.date]) grouped[a.date] = [];
+        grouped[a.date].push(a);
+    });
 
-        let shiftHtml = '';
-        allShifts.forEach(shift => {
-            if (shift.assignments) {
-                const myAssignment = shift.assignments.find(a => a.user_id === currentUser.id && a.date === currentDateStr);
-                if (myAssignment) {
-                    shiftHtml += `<div style="width: 6px; height: 6px; background: var(--accent-primary); border-radius: 50%; margin: 2px auto;"></div>`;
-                }
-            }
-            if (shift.assigned_user_id === currentUser.id) {
-                const shiftDates = shift.dates ? shift.dates.map(x => x.date) : [shift.date];
-                if (shiftDates.includes(currentDateStr)) {
-                    shiftHtml += `<div style="width: 6px; height: 6px; background: var(--accent-primary); border-radius: 50%; margin: 2px auto;"></div>`;
-                }
-            }
-        });
-
-        const daySchedules = mySchedules.filter(s => s.date === currentDateStr);
-        if (daySchedules.length > 0) {
-            shiftHtml += `<div style="width: 6px; height: 6px; background: var(--warning); border-radius: 50%; margin: 2px auto;"></div>`;
-        }
-
-        const isSelected = selectedMyDateStr === currentDateStr;
-        const bg = isSelected ? 'background: rgba(2, 132, 199, 0.1); border: 2px solid var(--accent-primary);' : 'background: var(--bg-secondary); border: 2px solid transparent;';
+    let html = '';
+    Object.keys(grouped).sort().forEach(dateStr => {
+        const items = grouped[dateStr];
+        const d = new Date(dateStr);
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const dayOfWeek = dayNames[d.getDay()];
+        const isSun = d.getDay() === 0;
+        const isSat = d.getDay() === 6;
+        const dayColor = isSun ? 'color:#ef4444;' : isSat ? 'color:#1d9bf0;' : '';
+        const isPast = d < new Date(new Date().toDateString());
 
         html += `
-            <div style="padding: 10px 0; border-radius: 8px; cursor: pointer; ${bg} transition: 0.2s;" onclick="showMyDayDetails('${currentDateStr}')">
-                <div style="font-weight: bold; ${dateObj.getDay() === 0 ? 'color:var(--danger);' : dateObj.getDay() === 6 ? 'color:var(--accent-primary);' : ''}">${d}</div>
-                <div style="height: 12px; display: flex; justify-content: center; gap: 2px; margin-top: 4px;">${shiftHtml}</div>
-            </div>
-        `;
+        <div class="card" style="margin-bottom:12px;border-left:4px solid var(--accent-primary);${isPast ? 'opacity:0.5;' : ''}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div style="background:var(--accent-primary);color:white;border-radius:10px;padding:8px 14px;text-align:center;min-width:60px;">
+                    <div style="font-size:20px;font-weight:900;line-height:1;${dayColor ? dayColor.replace('color:', 'color:white;').replace(';', '') : ''}">${d.getDate()}</div>
+                    <div style="font-size:10px;font-weight:700;opacity:0.85;">${d.getMonth()+1}月 (${dayOfWeek})</div>
+                </div>
+                <div>
+                    <div style="font-size:15px;font-weight:800;${dayColor}">${d.getMonth()+1}/${d.getDate()}(${dayOfWeek})</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">${items[0].startTime || ''} 〜 ${items[0].endTime || ''}</div>
+                </div>
+                ${isPast ? '<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;margin-left:auto;">終了</span>' : '<span style="font-size:10px;padding:2px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:#00ba7c;font-weight:700;margin-left:auto;">予定</span>'}
+            </div>`;
+
+        items.forEach(item => {
+            const slotTime = item.slot ? (() => { const [s, e] = item.slot.split('-'); return `${s}〜${e}`; })() : '';
+            html += `
+            <div style="padding:10px 12px;background:var(--bg-secondary);border-radius:10px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-weight:800;font-size:14px;">🏢 ${item.shiftTitle}</span>
+                    ${item.position && item.position !== '全体' ? `<span style="padding:2px 10px;border-radius:6px;background:rgba(245,158,11,0.12);color:#d97706;font-size:11px;font-weight:700;">${item.position}</span>` : ''}
+                </div>
+                ${slotTime ? `<div style="font-size:12px;color:var(--accent-primary);font-weight:700;">🕐 ${slotTime}</div>` : ''}
+            </div>`;
+        });
+
+        // 同僚表示（当日すべての同僚をまとめる）
+        const allColleagues = [];
+        const seenIds = new Set();
+        items.forEach(item => {
+            item.colleagues.forEach(c => {
+                const key = c.name + c.position;
+                if (!seenIds.has(key)) {
+                    seenIds.add(key);
+                    allColleagues.push(c);
+                }
+            });
+        });
+        if (allColleagues.length > 0) {
+            html += `<div style="margin-top:6px;padding:6px 10px;background:rgba(29,155,240,0.04);border-radius:8px;">
+                <span style="font-size:11px;color:#94a3b8;font-weight:600;">👥 一緒に働く仲間:</span>
+                ${allColleagues.map(c => `<span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#f1f5f9;font-size:11px;font-weight:600;color:#475569;margin:2px;">${c.name}${c.position && c.position !== '全体' ? ' ['+c.position+']' : ''}</span>`).join('')}
+            </div>`;
+        }
+
+        html += `</div>`;
+    });
+
+    // プライベート予定も表示
+    if (mySchedules && mySchedules.length > 0) {
+        html += `<h3 style="font-size:16px;font-weight:800;margin:20px 0 10px;color:var(--text-secondary);">👤 プライベート予定</h3>`;
+        mySchedules.sort((a,b) => a.date.localeCompare(b.date)).forEach(schedule => {
+            const d = new Date(schedule.date);
+            const dayNames = ['日','月','火','水','木','金','土'];
+            html += `
+            <div class="card" style="margin-bottom:8px;border-left:4px solid var(--warning);display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-size:13px;font-weight:800;">${d.getMonth()+1}/${d.getDate()}(${dayNames[d.getDay()]})</div>
+                    <div style="font-size:14px;font-weight:600;margin-top:2px;">${schedule.title}</div>
+                </div>
+                <button onclick="deletePersonalSchedule('${schedule.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;padding:4px 8px;font-size:16px;">🗑️</button>
+            </div>`;
+        });
     }
+
     container.innerHTML = html;
-    if (selectedMyDateStr) showMyDayDetails(selectedMyDateStr);
 }
 
-function prevMyMonth() { currentMyDate.setMonth(currentMyDate.getMonth() - 1); renderMyCalendar(); }
-function nextMyMonth() { currentMyDate.setMonth(currentMyDate.getMonth() + 1); renderMyCalendar(); }
+function prevMyMonth() { }
+function nextMyMonth() { }
 
 function showMyDayDetails(dateStr) {
     selectedMyDateStr = dateStr;
@@ -815,9 +883,10 @@ function showMyDayDetails(dateStr) {
     allShifts.forEach(shift => {
         let isAssigned = false;
         let timeStr = '時間未定';
+        let myA = null;
 
         if (shift.assignments) {
-            const myA = shift.assignments.find(a => a.user_id === currentUser.id && a.date === dateStr);
+            myA = shift.assignments.find(a => a.user_id === currentUser.id && a.date === dateStr);
             if (myA) { isAssigned = true; const di = shift.dates?.find(x => x.date === dateStr); if (di) timeStr = `${di.startTime} 〜 ${di.endTime}`; }
         }
         if (shift.assigned_user_id === currentUser.id) {
@@ -826,11 +895,42 @@ function showMyDayDetails(dateStr) {
         }
 
         if (isAssigned) {
+            // スロット情報を取得
+            const dateInfo = shift.dates?.find(x => x.date === dateStr);
+            const interval = parseInt(shift.slotInterval) || 60;
+            let slotDetailHtml = '';
+            if (myA && myA.slot) {
+                const [sStart, sEnd] = myA.slot.split('-');
+                slotDetailHtml = `<div style="margin-top:6px;display:inline-block;padding:3px 10px;border-radius:6px;background:rgba(29,155,240,0.08);color:var(--accent-primary);font-size:12px;font-weight:700;">🕐 ${sStart}~${sEnd}</div>`;
+            }
+            // ポジション情報
+            let posHtml = '';
+            if (myA && myA.position && myA.position !== '全体') {
+                posHtml = `<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:6px;background:rgba(245,158,11,0.12);color:#d97706;font-size:11px;font-weight:700;">${myA.position}</span>`;
+            }
+            // 同じ日に入る同僚
+            let colleagueHtml = '';
+            if (shift.assignments) {
+                const sameDay = shift.assignments.filter(a => a.date === dateStr && a.user_id !== currentUser.id);
+                if (sameDay.length > 0) {
+                    const names = sameDay.map(a => {
+                        const m = allMembers.find(mm => mm.id === a.user_id);
+                        const posTag = a.position && a.position !== '全体' ? ` <span style='font-size:10px;color:#94a3b8;'>[${a.position}]</span>` : '';
+                        return `<span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#f1f5f9;font-size:11px;font-weight:600;color:#475569;margin:2px;">${m?.name || '?'}${posTag}</span>`;
+                    }).join('');
+                    colleagueHtml = `<div style="margin-top:8px;"><div style="font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:4px;">👥 同日メンバー</div>${names}</div>`;
+                }
+            }
             html += `
-                <div style="background: rgba(255,255,255,0.8); border-left: 4px solid var(--accent-primary); padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <div style="font-size: 12px; color: var(--accent-primary); font-weight: bold; margin-bottom: 4px;">🏢 確定シフト</div>
-                    <div style="font-weight: bold; margin-bottom: 4px; font-size: 16px;">${shift.title}</div>
-                    <div style="font-size: 13px; color: var(--text-secondary);">⏰ ${timeStr}</div>
+                <div style="background: rgba(255,255,255,0.95); border-left: 4px solid var(--accent-primary); padding: 14px 16px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <span style="font-size: 12px; color: white; background:var(--accent-primary); padding:2px 10px; border-radius:6px; font-weight: 800;">🏢 確定シフト</span>
+                        ${posHtml}
+                    </div>
+                    <div style="font-weight: 800; margin-bottom: 4px; font-size: 17px; color:#0f1419;">${shift.title}</div>
+                    <div style="font-size: 14px; color: var(--text-secondary); font-weight:600;">⏰ ${timeStr}</div>
+                    ${slotDetailHtml}
+                    ${colleagueHtml}
                 </div>
             `;
         }

@@ -427,7 +427,7 @@ app.get('/api/shifts', (req, res) => {
     const ownerId = getOwnerId(req);
     const data = readData();
     const filtered = ownerId
-        ? data.shifts.filter(s => s.ownerId === ownerId)
+        ? data.shifts.filter(s => s.ownerId === ownerId || !s.ownerId)
         : data.shifts;
     res.json(filtered);
 });
@@ -437,8 +437,8 @@ app.get('/api/responses', (req, res) => {
     const ownerId = getOwnerId(req);
     const data = readData();
     if (!ownerId) return res.json(data.responses || []);
-    // 自分のシフトに紐づく回答のみ返す
-    const myShiftIds = data.shifts.filter(s => s.ownerId === ownerId).map(s => s.id);
+    // 自分のシフトに紐づく回答のみ返す（ownerId未設定のシフトも含む）
+    const myShiftIds = data.shifts.filter(s => s.ownerId === ownerId || !s.ownerId).map(s => s.id);
     const filtered = (data.responses || []).filter(r => myShiftIds.includes(r.shiftId) || myShiftIds.includes(r.shift_id));
     res.json(filtered);
 });
@@ -545,19 +545,21 @@ function generateTimeSlots(startTime, endTime, intervalMin) {
     return slots;
 }
 
-// 手動シフト割り当て（スロット単位対応）
+// 手動シフト割り当て（スロット単位＋ポジション対応）
 app.post('/api/shifts/:id/assign', (req, res) => {
     const data = readData();
     const shift = data.shifts.find(s => s.id === req.params.id);
     if (!shift) return res.status(404).json({ error: 'シフトが見つかりません' });
 
-    const { user_id, date, slot } = req.body;
+    const { user_id, date, slot, position } = req.body;
 
     if (date) {
         if (!shift.assignments) shift.assignments = [];
-        const existing = shift.assignments.find(a => a.date === date && a.user_id === user_id && (slot ? a.slot === slot : !a.slot));
+        const existing = shift.assignments.find(a => a.date === date && a.user_id === user_id && (slot ? a.slot === slot : !a.slot) && (!position || (a.position || '全体') === position));
         if (!existing) {
-            shift.assignments.push({ date, slot: slot || null, user_id, assignedAt: new Date().toISOString() });
+            const assignment = { date, slot: slot || null, user_id, assignedAt: new Date().toISOString() };
+            if (position) assignment.position = position;
+            shift.assignments.push(assignment);
         }
     } else {
         shift.assigned_user_id = user_id;
@@ -597,12 +599,12 @@ app.post('/api/shifts/auto-assign-all', (req, res) => {
     let assignedCount = 0;
     const assignmentDetails = [];
 
-    // ownerId対応: 自分のシフトとスタッフのみ対象
+    // ownerId対応: 自分のシフトとスタッフのみ対象（nullなら全件対象、ownerId未設定のシフト/スタッフも含む）
     const myShifts = ownerId
-        ? data.shifts.filter(s => s.ownerId === ownerId)
+        ? data.shifts.filter(s => s.ownerId === ownerId || !s.ownerId)
         : data.shifts;
     const myStaff = ownerId
-        ? data.members.filter(m => m.role === 'staff' && m.ownerId === ownerId)
+        ? data.members.filter(m => m.role === 'staff' && (m.ownerId === ownerId || !m.ownerId))
         : data.members.filter(m => m.role === 'staff');
 
     // 全スタッフのスロット割り当て数を事前計算
@@ -765,12 +767,16 @@ app.get('/api/members', (req, res) => {
             (m.role === 'staff' && !m.ownerId)
         );
     } else {
-        // スタッフ: 同じownerId配下のメンバーのみ
+        // スタッフ: 同じownerId配下のメンバーのみ（ownerIdが無い場合は全メンバー）
         const myOwnerId = currentUser.ownerId;
-        if (!myOwnerId) return res.json([]);
-        filtered = data.members.filter(m =>
-            m.ownerId === myOwnerId || m.id === myOwnerId
-        );
+        if (!myOwnerId) {
+            // ownerIdが未設定（テスト環境など）: 全員表示
+            filtered = data.members;
+        } else {
+            filtered = data.members.filter(m =>
+                m.ownerId === myOwnerId || m.id === myOwnerId
+            );
+        }
     }
     res.json(filtered.map(({ password, ...m }) => m));
 });
