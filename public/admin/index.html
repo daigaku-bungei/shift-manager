@@ -947,13 +947,17 @@
                             ホール・キッチンなど、ポジション別に必要人数を設定できます</p>
                         <div id="positions-container">
                             <div class="position-row"
-                                style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+                                style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;">
                                 <input type="text" class="form-control position-name" placeholder="ポジション名（例: ホール）"
-                                    value="" style="flex: 1;">
+                                    value="" style="flex: 1; min-width: 120px;">
                                 <input type="number" class="form-control position-count" value="1" min="1" max="20"
                                     style="width: 70px;">
                                 <span
                                     style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">名</span>
+                                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: var(--text-secondary); white-space: nowrap;">
+                                    <input type="checkbox" class="position-unlimited" onchange="toggleUnlimited(this)" style="accent-color: var(--accent-primary);">
+                                    上限なし
+                                </label>
                                 <button type="button" onclick="this.closest('.position-row').remove()"
                                     style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
                             </div>
@@ -1163,8 +1167,24 @@
 
             <div class="form-group" style="margin-bottom: 15px;">
                 <label class="form-label">各日の必要人数</label>
-                <input type="number" id="edit-required-staff-count" class="form-control" value="1" min="1" max="20"
-                    style="width: 120px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="number" id="edit-required-staff-count" class="form-control" value="1" min="1" max="20"
+                        style="width: 120px;">
+                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; color: var(--text-secondary); white-space: nowrap;">
+                        <input type="checkbox" id="edit-unlimited-staff" onchange="toggleEditUnlimited(this)" style="accent-color: var(--accent-primary);">
+                        上限なし
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label">ポジション設定</label>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                    後からポジションを追加・変更できます</p>
+                <div id="edit-positions-container"></div>
+                <button type="button" onclick="addEditPositionRow()"
+                    style="font-size: 12px; color: var(--accent-primary); background: none; border: 1px dashed var(--accent-primary); border-radius: 8px; padding: 6px 12px; cursor: pointer; width: 100%; margin-top: 4px;">+
+                    ポジション追加</button>
             </div>
 
             <div class="form-group" style="margin-bottom: 15px;">
@@ -1177,6 +1197,18 @@
             </div>
 
             <button class="btn btn-primary" style="width: 100%;" onclick="saveEditShift()">変更を保存する 💾</button>
+        </div>
+    </div>
+
+    <!-- カスタム確認ダイアログ -->
+    <div id="confirm-dialog-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;justify-content:center;align-items:center;">
+        <div style="background:white;border-radius:16px;padding:24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;">
+            <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+            <p id="confirm-dialog-message" style="font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:20px;line-height:1.5;"></p>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button id="confirm-dialog-cancel" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e2e8f0;background:white;color:#64748b;font-weight:700;font-size:14px;cursor:pointer;">キャンセル</button>
+                <button id="confirm-dialog-ok" style="flex:1;padding:10px;border-radius:10px;border:none;background:#ef4444;color:white;font-weight:700;font-size:14px;cursor:pointer;">削除する</button>
+            </div>
         </div>
     </div>
 

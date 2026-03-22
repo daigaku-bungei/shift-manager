@@ -8,6 +8,29 @@ let responses = [];
 let currentDate = new Date();
 let selectedDates = new Map(); // キー: 日付文字列、値: {date, startTime, endTime}
 
+// カスタム確認ダイアログ
+function showConfirmDialog(message, okLabel = '削除する') {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('confirm-dialog-overlay');
+        const msgEl = document.getElementById('confirm-dialog-message');
+        const okBtn = document.getElementById('confirm-dialog-ok');
+        const cancelBtn = document.getElementById('confirm-dialog-cancel');
+        msgEl.textContent = message;
+        okBtn.textContent = okLabel;
+        overlay.style.display = 'flex';
+        const cleanup = (result) => {
+            overlay.style.display = 'none';
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            resolve(result);
+        };
+        const onOk = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+    });
+}
+
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
     await loadUserInfo();
@@ -217,7 +240,7 @@ async function loadShifts() {
                         const legacyAssignments = assignments.filter(a => a.date === d.date && !a.slot);
                         const allAssigned = [...slotAssignments];
                         legacyAssignments.forEach(la => { if (!allAssigned.some(a => a.user_id === la.user_id)) allAssigned.push(la); });
-                        const isShort = allAssigned.length < requiredCount;
+                        const isShort = requiredCount < 999 && allAssigned.length < requiredCount;
                         const isFull = allAssigned.length >= requiredCount;
                         let bg = rowBg;
                         if (isShort && allAssigned.length === 0) bg = 'rgba(239,68,68,0.07)';
@@ -242,10 +265,19 @@ async function loadShifts() {
                         };
                         allAssigned.forEach(a => {
                             const mn = staffMembers.find(m => m.id === a.user_id)?.name || '?';
-                            const posLabel = a.position && a.position !== '全体' ? `<span style="font-size:10px;opacity:0.8;margin-left:3px;">[${a.position}]</span>` : '';
                             const pColor = getPosColor(a.position);
+                            let posSelect = '';
+                            if (shiftPositions && shiftPositions.length > 1) {
+                                const currentPos = a.position || '全体';
+                                posSelect = `<select onchange="changePosition('${shift.id}','${a.user_id}','${d.date}','${slotKey}',this.value)" style="font-size:10px;padding:1px 4px;border:1px solid ${pColor.text}44;border-radius:4px;background:white;cursor:pointer;color:${pColor.text};font-weight:700;max-width:80px;">
+                                    ${shiftPositions.map(p => `<option value="${p.name}" ${p.name === currentPos ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                </select>`;
+                            } else {
+                                const posLabel = a.position && a.position !== '全体' ? `<span style="font-size:10px;opacity:0.8;margin-left:3px;">[${a.position}]</span>` : '';
+                                posSelect = posLabel;
+                            }
                             cellContent += `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin:3px 0;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;background:${pColor.bg};color:${pColor.text};border:1px solid ${pColor.text}22;">
-                                        <span>${mn}${posLabel}</span>
+                                        <span>${mn}${posSelect}</span>
                                         <button onclick="unassignSlot('${shift.id}','${a.user_id}','${d.date}','${slotKey}')" style="background:rgba(239,68,68,0.1);border:none;cursor:pointer;color:#ef4444;font-size:12px;padding:2px 6px;border-radius:4px;font-weight:700;" title="解除">✕</button>
                                     </div>`;
                         });
@@ -257,9 +289,17 @@ async function loadShifts() {
                                 const posAssigned = allAssigned.filter(a => (a.position || '全体') === pos.name);
                                 const posNeeded = pos.count - posAssigned.length;
                                 const pColor = posColorPalette[pi % posColorPalette.length];
-                                if (posNeeded > 0) {
+                                const isUnlimited = pos.count >= 999;
+                                // 上限なしの場合は不足表示なし、スタッフ追加UIのみ
+                                if (isUnlimited || posNeeded > 0) {
                                     cellContent += `<div style="margin-top:5px;padding:5px 8px;border-radius:8px;background:${pColor.bg};border:1px dashed ${pColor.text}55;">`;
-                                    cellContent += `<div style="font-size:11px;color:${pColor.text};font-weight:800;margin-bottom:4px;">${pos.name} <span style='background:${pColor.text};color:white;font-size:10px;padding:1px 6px;border-radius:9999px;'>あと${posNeeded}名</span></div>`;
+                                    if (isUnlimited) {
+                                        // 上限なしの場合はスタッフ追加UIのみ
+                                    } else {
+                                        cellContent += `<div style="font-size:11px;color:${pColor.text};font-weight:800;margin-bottom:4px;">${pos.name} <span style='background:${pColor.text};color:white;font-size:10px;padding:1px 6px;border-radius:9999px;'>あと${posNeeded}名</span></div>`;
+                                    }
+                                    const assignedIds = allAssigned.map(a => a.user_id);
+                                    const cands = staffMembers.filter(m => !assignedIds.includes(m.id));
                                     if (cands.length > 0) {
                                         const escapedPos = pos.name.replace(/'/g, "\\'");
                                         cellContent += `<select onchange="if(this.value)assignSlot('${shift.id}',this.value,'${d.date}','${slotKey}','${escapedPos}')" style="padding:4px 6px;font-size:12px;border:1px solid ${pColor.text}44;border-radius:6px;width:100%;background:white;cursor:pointer;color:#334155;font-weight:600;">
@@ -297,7 +337,7 @@ async function loadShifts() {
             let totalSlots = 0, filledSlots = 0;
             dateCols.forEach(d => { const slots = generateTimeSlotsClient(d.startTime, d.endTime, interval); slots.forEach(s => { totalSlots++; const assigned = assignments.filter(a => a.date === d.date && a.slot === s.key).length; if (assigned >= requiredCount) filledSlots++; }); });
             const fillRate = totalSlots > 0 ? Math.round(filledSlots / totalSlots * 100) : 0;
-            return `<div class="card" style="border-left:4px solid var(--accent-primary);padding:15px;margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px dashed var(--border-color);padding-bottom:10px;margin-bottom:10px;"><h2 style="font-size:16px;font-weight:800;margin:0;">${shift.title}</h2><div style="display:flex;gap:8px;align-items:center;">${deadlineHtml}<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="openEditShiftModal('${shift.id}')">編集</button><button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteShift('${shift.id}')">削除</button></div></div>${shift.description ? `<p style="color:var(--text-secondary);font-size:12px;margin-bottom:8px;">📝 ${shift.description}</p>` : ''}<div style="display:flex;gap:10px;font-size:12px;margin-bottom:8px;flex-wrap:wrap;"><span style="padding:3px 8px;border-radius:6px;background:rgba(29,155,240,0.1);color:var(--accent-primary);font-weight:700;">回答 ${shiftResponses.length}/${staffMembers.length}</span><span style="padding:3px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:var(--success);font-weight:700;">必要 ${requiredCount}名/コマ</span><span style="padding:3px 8px;border-radius:6px;background:${fillRate >= 100 ? 'rgba(0,186,124,0.1);color:var(--success)' : 'rgba(244,33,46,0.08);color:var(--danger)'};font-weight:700;">充足率 ${fillRate}%</span>${assignments.length > 0 ? `<span style="padding:3px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:var(--success);font-weight:700;">📌 ${assignments.length}件割当</span>` : ''} ${noResponseStaff.length > 0 ? `<span style="padding:3px 8px;border-radius:6px;background:rgba(244,33,46,0.08);color:var(--danger);font-weight:700;">未回答: ${noResponseStaff.map(m => m.name).join(', ')}</span>` : ''}</div>${gridHtml}</div>`;
+            return `<div class="card" style="border-left:4px solid var(--accent-primary);padding:15px;margin-bottom:16px;"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px dashed var(--border-color);padding-bottom:10px;margin-bottom:10px;"><h2 style="font-size:16px;font-weight:800;margin:0;">${shift.title}</h2><div style="display:flex;gap:8px;align-items:center;">${deadlineHtml}<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;" onclick="openEditShiftModal('${shift.id}')">編集</button><button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="deleteShift('${shift.id}')">削除</button></div></div>${shift.description ? `<p style="color:var(--text-secondary);font-size:12px;margin-bottom:8px;">📝 ${shift.description}</p>` : ''}<div style="display:flex;gap:10px;font-size:12px;margin-bottom:8px;flex-wrap:wrap;"><span style="padding:3px 8px;border-radius:6px;background:rgba(29,155,240,0.1);color:var(--accent-primary);font-weight:700;">回答 ${shiftResponses.length}/${staffMembers.length}</span><span style="padding:3px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:var(--success);font-weight:700;">${requiredCount >= 999 ? '上限なし' : `必要 ${requiredCount}名/コマ`}</span>${requiredCount < 999 ? `<span style="padding:3px 8px;border-radius:6px;background:${fillRate >= 100 ? 'rgba(0,186,124,0.1);color:var(--success)' : 'rgba(244,33,46,0.08);color:var(--danger)'};font-weight:700;">充足率 ${fillRate}%</span>` : ''}${assignments.length > 0 ? `<span style="padding:3px 8px;border-radius:6px;background:rgba(0,186,124,0.1);color:var(--success);font-weight:700;">📌 ${assignments.length}件割当</span>` : ''} ${noResponseStaff.length > 0 ? `<span style="padding:3px 8px;border-radius:6px;background:rgba(244,33,46,0.08);color:var(--danger);font-weight:700;">未回答: ${noResponseStaff.map(m => m.name).join(', ')}</span>` : ''}</div>${gridHtml}</div>`;
         }).join('');
     } catch (error) {
         console.error('シフトの読み込みに失敗:', error);
@@ -320,6 +360,20 @@ async function unassignSlot(shiftId, userId, date, slot) {
     try {
         const res = await fetch(`/api/shifts/${shiftId}/unassign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ user_id: userId, date, slot }) });
         if (res.ok) { showAlert('解除しました', 'success'); loadShifts(); } else { showAlert('解除に失敗しました', 'error'); }
+    } catch (e) { showAlert('通信エラー', 'error'); }
+}
+
+// ポジション変更
+async function changePosition(shiftId, userId, date, slot, newPosition) {
+    try {
+        const res = await fetch(`/api/shifts/${shiftId}/change-position`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ user_id: userId, date, slot, position: newPosition })
+        });
+        if (res.ok) { showAlert(`ポジションを「${newPosition}」に変更しました`, 'success'); loadShifts(); }
+        else { showAlert('ポジション変更に失敗しました', 'error'); }
     } catch (e) { showAlert('通信エラー', 'error'); }
 }
 
@@ -370,7 +424,7 @@ async function exportAllShiftsPDF() {
             title.innerHTML = `
                 <div style="font-size:20px;font-weight:bold;color:#1a1a1a;margin-bottom:4px;">${shift.title || 'シフト表'}</div>
                 <div style="font-size:11px;color:#666;display:flex;gap:16px;">
-                    <span>必要人数: ${requiredCount}名/コマ</span>
+                    <span>必要人数: ${requiredCount >= 999 ? '上限なし' : requiredCount + '名/コマ'}</span>
                     <span>コマ: ${interval}分</span>
                     <span>出力日時: ${new Date().toLocaleString('ja-JP')}</span>
                 </div>
@@ -511,7 +565,7 @@ async function exportAllShiftsPDF() {
 
 // 魔法の自動生成（スロット単位一括割り当て）
 async function runAutoAssign() {
-    if (!confirm('未割当のシフトすべてに対して、希望・相性・実績を元に自動でシフトを組みますか？\n（既に割当済のシフトは変更されません）')) return;
+    if (!await showConfirmDialog('未割当のシフトすべてに対して、希望・相性・実績を元に自動でシフトを組みますか？', '実行する')) return;
 
     try {
         const btn = document.querySelector('button[onclick="runAutoAssign()"]');
@@ -663,7 +717,7 @@ async function updateMemberSkill(memberId, newLevel) {
 
 // メンバー削除
 async function deleteMember(memberId) {
-    if (!confirm('このメンバーを削除してもよろしいですか？')) return;
+    if (!await showConfirmDialog('このメンバーを削除してもよろしいですか？')) return;
     try {
         const response = await fetch(`/api/members/${memberId}`, { method: 'DELETE', credentials: 'include' });
         if (response.ok) {
@@ -749,7 +803,7 @@ async function addPairRule() {
 }
 
 async function deletePairRule(id) {
-    if (!confirm('このルールを削除しますか？')) return;
+    if (!await showConfirmDialog('このルールを削除しますか？')) return;
     try {
         const res = await fetch(`/api/pairings/${id}`, { method: 'DELETE', credentials: 'include' });
         if (res.ok) {
@@ -1248,11 +1302,15 @@ function addPositionRow() {
     const container = document.getElementById('positions-container');
     const row = document.createElement('div');
     row.className = 'position-row';
-    row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 6px;';
+    row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;';
     row.innerHTML = `
-        <input type="text" class="form-control position-name" placeholder="ポジション名（例: キッチン）" value="" style="flex: 1;">
+        <input type="text" class="form-control position-name" placeholder="ポジション名（例: キッチン）" value="" style="flex: 1; min-width: 120px;">
         <input type="number" class="form-control position-count" value="1" min="1" max="20" style="width: 70px;">
         <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">名</span>
+        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: var(--text-secondary); white-space: nowrap;">
+            <input type="checkbox" class="position-unlimited" onchange="toggleUnlimited(this)" style="accent-color: var(--accent-primary);">
+            上限なし
+        </label>
         <button type="button" onclick="this.closest('.position-row').remove()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
     `;
     container.appendChild(row);
@@ -1264,10 +1322,36 @@ function getPositionsData() {
     const positions = [];
     rows.forEach(row => {
         const name = row.querySelector('.position-name').value.trim() || '全体';
-        const count = parseInt(row.querySelector('.position-count').value) || 1;
+        const unlimitedCb = row.querySelector('.position-unlimited');
+        const isUnlimited = unlimitedCb && unlimitedCb.checked;
+        const count = isUnlimited ? 999 : (parseInt(row.querySelector('.position-count').value) || 1);
         positions.push({ name, count });
     });
     return positions.length > 0 ? positions : [{ name: '全体', count: 1 }];
+}
+
+function toggleUnlimited(checkbox) {
+    const row = checkbox.closest('.position-row');
+    const countInput = row.querySelector('.position-count');
+    const countLabel = row.querySelector('.position-count-label');
+    if (checkbox.checked) {
+        countInput.disabled = true;
+        countInput.style.opacity = '0.4';
+    } else {
+        countInput.disabled = false;
+        countInput.style.opacity = '1';
+    }
+}
+
+function toggleEditUnlimited(checkbox) {
+    const countInput = document.getElementById('edit-required-staff-count');
+    if (checkbox.checked) {
+        countInput.disabled = true;
+        countInput.style.opacity = '0.4';
+    } else {
+        countInput.disabled = false;
+        countInput.style.opacity = '1';
+    }
 }
 
 function openCreateShiftModal() {
@@ -1279,10 +1363,14 @@ function openCreateShiftModal() {
     // ポジション入力をリセット
     const container = document.getElementById('positions-container');
     container.innerHTML = `
-        <div class="position-row" style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
-            <input type="text" class="form-control position-name" placeholder="ポジション名（例: ホール）" value="" style="flex: 1;">
+        <div class="position-row" style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;">
+            <input type="text" class="form-control position-name" placeholder="ポジション名（例: ホール）" value="" style="flex: 1; min-width: 120px;">
             <input type="number" class="form-control position-count" value="1" min="1" max="20" style="width: 70px;">
             <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">名</span>
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: var(--text-secondary); white-space: nowrap;">
+                <input type="checkbox" class="position-unlimited" onchange="toggleUnlimited(this)" style="accent-color: var(--accent-primary);">
+                上限なし
+            </label>
             <button type="button" onclick="this.closest('.position-row').remove()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
         </div>
     `;
@@ -1619,10 +1707,7 @@ function setQuickDeadline(daysToAdd) {
 
 // シフト削除
 async function deleteShift(shiftId) {
-    // setTimeoutでconfirmダイアログが再描画と競合しないようにする
-    const userConfirmed = await new Promise(resolve => {
-        setTimeout(() => resolve(confirm('このシフトを削除してもよろしいですか？\n（関連する回答データも一緒に削除されます）')), 100);
-    });
+    const userConfirmed = await showConfirmDialog('このシフトを削除してもよろしいですか？\n（関連する回答データも一緒に削除されます）');
     if (!userConfirmed) return;
     try {
         const response = await fetch(`/api/shifts/${shiftId}`, { method: 'DELETE', credentials: 'include' });
@@ -1721,8 +1806,18 @@ function openEditShiftModal(shiftId) {
     }
 
     // 必要人数・希望シフト数
-    document.getElementById('edit-required-staff-count').value = shift.required_staff_count || 1;
+    const staffCount = shift.required_staff_count || 1;
+    const isUnlimited = staffCount >= 999;
+    document.getElementById('edit-required-staff-count').value = isUnlimited ? 1 : staffCount;
+    const unlimitedCb = document.getElementById('edit-unlimited-staff');
+    if (unlimitedCb) {
+        unlimitedCb.checked = isUnlimited;
+        toggleEditUnlimited(unlimitedCb);
+    }
     document.getElementById('edit-allow-preferred-count').checked = !!shift.allow_preferred_count;
+
+    // ポジションデータを編集UIに復元
+    renderEditPositions(shift.positions || []);
 
     // 日付リスト描画
     renderEditDatesList(shift.dates || []);
@@ -1733,6 +1828,63 @@ function openEditShiftModal(shiftId) {
 function closeEditShiftModal() {
     document.getElementById('edit-shift-modal').classList.remove('active');
     editingShiftId = null;
+}
+
+// 編集モーダルのポジションUI
+function renderEditPositions(positions) {
+    const container = document.getElementById('edit-positions-container');
+    container.innerHTML = '';
+    if (positions && positions.length > 0) {
+        positions.forEach(pos => {
+            addEditPositionRow(pos.name, pos.count);
+        });
+    }
+}
+
+function addEditPositionRow(name = '', count = 1) {
+    const container = document.getElementById('edit-positions-container');
+    const row = document.createElement('div');
+    row.className = 'edit-position-row';
+    row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;';
+    const isUnlimited = count >= 999;
+    row.innerHTML = `
+        <input type="text" class="form-control edit-pos-name" placeholder="ポジション名（例: ホール）" value="${name}" style="flex: 1; min-width: 100px;">
+        <input type="number" class="form-control edit-pos-count" value="${isUnlimited ? 1 : count}" min="1" max="20" style="width: 65px;" ${isUnlimited ? 'disabled style="width:65px;opacity:0.4;"' : ''}>
+        <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap;">名</span>
+        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: var(--text-secondary); white-space: nowrap;">
+            <input type="checkbox" class="edit-pos-unlimited" onchange="toggleEditPosUnlimited(this)" ${isUnlimited ? 'checked' : ''} style="accent-color: var(--accent-primary);">
+            上限なし
+        </label>
+        <button type="button" onclick="this.closest('.edit-position-row').remove()" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
+    `;
+    container.appendChild(row);
+}
+
+function toggleEditPosUnlimited(checkbox) {
+    const row = checkbox.closest('.edit-position-row');
+    const countInput = row.querySelector('.edit-pos-count');
+    if (checkbox.checked) {
+        countInput.disabled = true;
+        countInput.style.opacity = '0.4';
+    } else {
+        countInput.disabled = false;
+        countInput.style.opacity = '1';
+    }
+}
+
+function getEditPositionsData() {
+    const rows = document.querySelectorAll('#edit-positions-container .edit-position-row');
+    const positions = [];
+    rows.forEach(row => {
+        const name = row.querySelector('.edit-pos-name').value.trim();
+        const unlimitedCb = row.querySelector('.edit-pos-unlimited');
+        const isUnlimited = unlimitedCb && unlimitedCb.checked;
+        const count = isUnlimited ? 999 : (parseInt(row.querySelector('.edit-pos-count').value) || 1);
+        if (name) {
+            positions.push({ name, count });
+        }
+    });
+    return positions;
 }
 
 function renderEditDatesList(dates) {
@@ -1805,7 +1957,8 @@ async function saveEditShift() {
         deadline: deadlineVal ? new Date(deadlineVal).toISOString() : null,
         slotInterval: document.getElementById('edit-slot-interval').value,
         dates: updatedDates,
-        required_staff_count: parseInt(document.getElementById('edit-required-staff-count').value) || 1,
+        required_staff_count: document.getElementById('edit-unlimited-staff')?.checked ? 999 : (parseInt(document.getElementById('edit-required-staff-count').value) || 1),
+        positions: getEditPositionsData(),
         allow_preferred_count: document.getElementById('edit-allow-preferred-count').checked
     };
 

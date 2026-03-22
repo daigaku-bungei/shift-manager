@@ -497,7 +497,7 @@ app.put('/api/shifts/:id', (req, res) => {
     const shiftIndex = data.shifts.findIndex(s => s.id === req.params.id);
     if (shiftIndex === -1) return res.status(404).json({ error: 'シフトが見つかりません' });
 
-    const updatableFields = ['title', 'description', 'dates', 'deadline', 'responseType', 'slotInterval', 'required_skill_level', 'required_staff_count', 'allow_preferred_count'];
+    const updatableFields = ['title', 'description', 'dates', 'deadline', 'responseType', 'slotInterval', 'required_skill_level', 'required_staff_count', 'positions', 'allow_preferred_count'];
     updatableFields.forEach(field => {
         if (req.body[field] !== undefined) {
             data.shifts[shiftIndex][field] = req.body[field];
@@ -587,6 +587,25 @@ app.post('/api/shifts/:id/unassign', (req, res) => {
         shift.assigned_user_id = null;
     }
 
+    writeData(data);
+    res.json({ success: true });
+});
+
+// 割り当て済みスタッフのポジション変更
+app.post('/api/shifts/:id/change-position', (req, res) => {
+    const data = readData();
+    const shift = data.shifts.find(s => s.id === req.params.id);
+    if (!shift) return res.status(404).json({ error: 'シフトが見つかりません' });
+
+    const { user_id, date, slot, position } = req.body;
+    if (!shift.assignments) return res.status(400).json({ error: '割り当てがありません' });
+
+    const assignment = shift.assignments.find(a =>
+        a.date === date && a.user_id === user_id && (slot ? a.slot === slot : !a.slot)
+    );
+    if (!assignment) return res.status(404).json({ error: '割り当てが見つかりません' });
+
+    assignment.position = position || '全体';
     writeData(data);
     res.json({ success: true });
 });
