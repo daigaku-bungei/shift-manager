@@ -5,10 +5,13 @@ const fs = require('fs');
 const axios = require('axios');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
+const { initPool, initDB, loadCache, migrateFromFile, readData, writeData } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3456;
-const DATA_FILE = path.join(__dirname, 'data.json');
+
+// DB接続プール初期化
+initPool();
 
 app.use(express.json());
 app.use(cookieParser());
@@ -36,24 +39,7 @@ const LINE_CLIENT_ID = process.env.LINE_CLIENT_ID;
 const LINE_CLIENT_SECRET = process.env.LINE_CLIENT_SECRET;
 
 
-// --- データベース操作 ---
-const readData = () => {
-    if (!fs.existsSync(DATA_FILE)) {
-        const initial = {
-            shifts: [],
-            members: [],
-            responses: [],
-            pairings: [],
-            schedules: [],
-            invites: []
-        };
-        fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
-        return initial;
-    }
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-};
 
-const writeData = (data) => fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 
 // ownerId取得ヘルパー: ログインユーザーが管理者なら自分のID、スタッフなら自分のownerId
 function getOwnerId(req) {
@@ -934,4 +920,14 @@ app.post('/api/melogout', (req, res) => {
     res.json({ success: true });
 });
 
-app.listen(PORT, () => console.log(`🚀 Urban Shift Studio 起動: http://localhost:${PORT}`));
+// --- サーバー起動（DB初期化込み） ---
+(async () => {
+    try {
+        await initDB();
+        await migrateFromFile();
+        await loadCache();
+    } catch (err) {
+        console.error('⚠️ DB初期化エラー（ファイルモードで続行）:', err.message);
+    }
+    app.listen(PORT, () => console.log(`🚀 Urban Shift Studio 起動: http://localhost:${PORT}`));
+})();
